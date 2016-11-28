@@ -11,7 +11,7 @@
    * `git submodule update`
 
 #### 4. Create and run containers
-   * `docker-compose up -d -f env/docker-compose.yml --remove-orphans --force-recreate --build`
+   * `docker-compose -f env/docker-compose.yml up -d --remove-orphans --force-recreate --build`
 
 # Available tools
 
