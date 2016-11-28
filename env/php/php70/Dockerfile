@@ -1,0 +1,76 @@
+FROM php:7.0-fpm
+MAINTAINER Taras Shabatyn <tshabatyn@magento.com>
+
+ENV TERM=xterm-256color
+ENV COMPOSER_PROCESS_TIMEOUT 2000
+
+RUN apt-get update && apt-get install -y \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libmcrypt-dev \
+    libpng12-dev \
+    libicu-dev \
+    libxslt-dev \
+    vim \
+    git \
+    mysql-client \
+    openssh-server \
+    libgringotts-dev \
+    curl \
+    libcurl4-openssl-dev \
+    msmtp \
+    patch \
+    less
+
+ARG php_ext
+
+RUN docker-php-ext-install -j$(nproc) $php_ext
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ --with-mhash \
+    && docker-php-ext-install -j$(nproc) gd
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+COPY ./etc/php/conf.d/production-php.ini $PHP_INI_DIR/php.ini
+
+COPY ./etc/php/php-fpm.d/development-www.conf /usr/local/etc/php-fpm.d/www.conf
+RUN sed -i 's/www-data/root/g' /usr/local/etc/php-fpm.d/www.conf
+
+RUN sed -i 's/UMASK\s*022/UMASK\t002/' /etc/login.defs
+RUN echo 'umask 002' >> /etc/profile
+RUN echo 'alias ll="ls -lA"' >>/root/.bashrc
+
+RUN echo 'root:root' | chpasswd
+RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+
+WORKDIR /var/www
+
+RUN echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.remote_port=9000" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.remote_connect_back=0" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.idekey=\"PHPSTORM\"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.max_nesting_level=100000" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.remote_autostart=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.show_local_vars=0" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.var_display_max_data=10000" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.var_display_max_depth=20" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.remote_host=\"10.254.254.254\"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo ";xdebug.show_exception_trace=0" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo ";xdebug.remote_handler=\"dbgp\"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo ";xdebug.profiler_enable_trigger=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.profiler_output_dir = "/var/www/magento2/var/tmp"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini
+
+RUN curl -o /usr/local/bin/n98 https://files.magerun.net/n98-magerun.phar && chmod +x /usr/local/bin/n98
+RUN curl -o /usr/local/bin/n99 https://files.magerun.net/n98-magerun2.phar && chmod +x /usr/local/bin/n99
+
+RUN ln -s /opt/data/magento1 /var/www/ \
+    ; ln -s /opt/data/magento2 /var/www/
+
+ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm", "-R"]

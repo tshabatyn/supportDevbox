@@ -1,0 +1,227 @@
+version: '2'
+
+services:
+
+# Stores all data
+  data:
+    container_name: support_data_11
+    image: alpine
+    command: /bin/sh
+    volumes:
+      - ../magento1:/opt/data/magento1
+      - ../magento2:/opt/data/magento2
+#      - ./conf/lsyncd/lsyncd.conf.lua:/etc/lsyncd/lsyncd.conf.lua
+
+  php-data:
+    container_name: support_php-data_11
+    image: alpine
+    command: /bin/sh
+    volumes_from:
+      - data
+    volumes:
+      - db-data:/var/run/mysqld/
+      - ./conf/composer/auth.json:/root/.composer/auth.json:ro
+      - ./conf/smtp/msmtprc:/etc/msmtprc:ro
+      - ./supportTools/restore/restore.sh:/usr/local/bin/restore.sh:ro
+      - ./supportTools/restore/restore.conf:/usr/local/bin/.restore.conf:ro
+      - ./supportTools/m2install/m2install.sh:/usr/local/bin/m2install.sh:ro
+      - ./supportTools/m2install/m2install.conf:/usr/local/bin/.m2install.conf:ro
+
+
+# Apache
+  web:
+    container_name: support_web_11
+    restart: always
+    image: httpd:2.4
+    ports:
+      - "80:80"
+      - "443:443"
+    links:
+#      - php55
+#      - php71
+      - php56
+      - php70
+      - solr
+    networks:
+      default:
+        aliases:
+          - "magento1.local"
+#          - "php55.magento1.local"
+#          - "php71.magento1.local"
+          - "php56.magento1.local"
+          - "php70.magento1.local"
+          - "magento2.local"
+#          - "php55.magento2.local"
+#          - "php71.magento2.local"
+          - "php56.magento2.local"
+          - "php70.magento2.local"
+    command: bash -c "/usr/local/bin/entrypoint.sh"
+    volumes_from:
+      - data:ro
+    volumes:
+      - ./conf/httpd/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
+      - ./conf/httpd/index.html:/var/www/index.html:ro
+      - ./conf/httpd/conf/httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - ./conf/httpd/conf/extra/httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf:ro
+      - ./conf/httpd/conf/extra/httpd-vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
+      - ./conf/httpd/ssl:/usr/local/apache2/conf/ssl/:ro
+      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+
+
+# PHP
+#  php55:
+#    container_name: support_php55_11
+#    build:
+#      context: ./php/php55
+#      args:
+#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+##    command: bash -c "service ssh stop && service ssh start"
+#    links:
+#      - redis
+#      - db
+#      - mailcatcher
+#      - mongo # we need it for xhprof
+#      - solr
+#    volumes_from:
+#      - php-data
+#    volumes:
+#      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+#      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+#    ports:
+#      - "2231:22"
+
+  php56:
+    container_name: support_php56_11
+    build:
+      context: ./php/php56
+      args:
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+#    command: bash -c "service ssh stop && service ssh start"
+    links:
+      - redis
+      - db
+      - mailcatcher
+      - mongo # we need it for xhprof
+      - solr
+    volumes_from:
+      - php-data
+    volumes:
+      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+    ports:
+      - "2232:22"
+
+  php70:
+    container_name: support_php70_11
+    build:
+      context: ./php/php70
+      args:
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+#    command: bash -c "service ssh stop && service ssh start"
+    links:
+      - redis
+      - db
+      - mailcatcher
+      - mongo # we need it for xhprof
+      - solr
+    volumes_from:
+      - php-data
+    ports:
+      - "2233:22"
+
+#  php71:
+#    container_name: support_php71_11
+#    build:
+#      context: ./php/php71
+#      args:
+#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+##    command: bash -c "service ssh stop && service ssh start"
+#    links:
+#      - redis
+#      - db
+#      - mailcatcher
+#      - mongo # we need it for xhprof
+#      - solr
+#    volumes_from:
+#      - php-data
+#    ports:
+#      - "2234:22"
+
+
+# CACHES
+  redis:
+    container_name: support_redis_11
+    image: redis
+    volumes:
+      - ./data/redis:/data
+
+
+# DB
+  db:
+    container_name: support_db_11
+    image: mysql:5.6
+#    image: mysql:5.7
+#    image: mariadb:latest
+    env_file:
+      - ./conf/db/mysql.env
+    volumes:
+      - db-data:/var/run/mysqld/
+      - ./data/db/data:/var/lib/mysql
+      - ./data/db/logs/mysql:/var/log/mysql
+      - ./conf/db/.my.cnf:/root/.my.cnf:ro
+      - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
+
+# Jobs/ Queues
+  rabbit:
+    container_name: support_rabbit_11
+    restart: always
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=magento2
+      - RABBITMQ_DEFAULT_PASS=magento2
+    ports:
+      - "8282:15672"
+      - "5672:5672"
+
+# Search engines
+  solr:
+    container_name: support_solr_11
+    build:
+      context: ./solr36
+      args:
+        SOLR_VERSION: "3.6.2"
+        SOLR_KEY: "322D7ECA"
+        SOLR_SOURCE_SHA256_HASH: "3a1a40542670ea6efec246a081053732c5503ec1"
+    ports:
+      - "8983:8983"
+
+  elasticsearch:
+    container_name: support_elasticsearch_11
+    restart: always
+    image: elasticsearch:2.4
+#    command: bash -c "ls -lah /"
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+
+
+# Email
+  mailcatcher:
+    container_name: support_mailcatcher_11
+    image: schickling/mailcatcher
+    expose:
+      - 1025
+    ports:
+      - "1080:1080"
+
+# OTHERS
+
+# We need Mongo for xhprof
+  mongo:
+    container_name: support_mongo_11
+    image: mongo:3.2
+
+volumes:
+  db-data: {}

@@ -1,0 +1,3 @@
+[submodule "env/php/tools/xhgui"]
+	path = env/php/tools/xhgui
+	url = https://github.com/perftools/xhgui.git
