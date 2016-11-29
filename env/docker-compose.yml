@@ -160,9 +160,9 @@ services:
 # DB
   db:
     container_name: support_db_11
-    image: mysql:5.6
+#    image: mysql:5.6
 #    image: mysql:5.7
-#    image: mariadb:latest
+    image: mariadb:latest
     env_file:
       - ./conf/db/mysql.env
     volumes:
