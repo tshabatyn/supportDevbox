@@ -1,14 +1,17 @@
 # Installation
 
-1. #### Copy your composer auth file to the `env/.composer/` dir
+#### 1. Copy your composer auth file to the `env/.composer/` dir
    * `mkdir -p env/conf/composer/ && cp ~/.composer/auth.json env/conf/composer/auth.json`
-1. #### Add IP alias, on your host machine, for enable Xdebug
+
+#### 2. Add IP alias, on your host machine, for enable Xdebug
    * `sudo ifconfig lo0 alias 10.254.254.254 netmask 255.255.255.0`
-1. #### Init submodules
+
+#### 3. Init submodules
    * `git submodule init`
    * `git submodule update`
-1. #### Create and run containers
-   * `docker-compose up -d -f env/docker-compose.yml --remove-orphans --force-recreate --build`
+
+#### 4. Create and run containers
+   * `docker-compose -f env/docker-compose.yml up -d --remove-orphans --force-recreate --build`
 
 # Available tools
 
