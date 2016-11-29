@@ -5,22 +5,25 @@ ENV TERM=xterm-256color
 ENV COMPOSER_PROCESS_TIMEOUT 2000
 
 RUN apt-get update && apt-get install -y \
+    vim \
+    git \
+    mysql-client \
+    openssh-server \
+    curl \
+    msmtp \
+    patch \
+    less
+
+RUN apt-get install -y libmagickwand-6.q16-dev \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
     libmcrypt-dev \
     libpng12-dev \
     libicu-dev \
     libxslt-dev \
-    vim \
-    git \
-    mysql-client \
-    openssh-server \
     libgringotts-dev \
-    curl \
     libcurl4-openssl-dev \
-    msmtp \
-    patch \
-    less
+    --no-install-recommends
 
 ARG php_ext
 
@@ -28,6 +31,22 @@ RUN docker-php-ext-install -j$(nproc) $php_ext
 RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ --with-mhash \
     && docker-php-ext-install -j$(nproc) gd
 RUN pecl install xdebug && docker-php-ext-enable xdebug
+
+RUN pecl install oauth-1.2.3 && docker-php-ext-enable oauth
+
+RUN ln -s /usr/lib/x86_64-linux-gnu/ImageMagick-6.8.9/bin-Q16/MagickWand-config /usr/bin/ \
+    && pecl install imagick \
+    && docker-php-ext-enable imagick
+
+RUN apt-get purge -y libmagickwand-6.q16-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libmcrypt-dev \
+    libpng12-dev \
+    libicu-dev \
+    libxslt-dev \
+    libgringotts-dev \
+    libcurl4-openssl-dev
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
@@ -43,9 +62,6 @@ RUN echo 'alias ll="ls -lA"' >>/root/.bashrc
 RUN echo 'root:root' | chpasswd
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-
-
-WORKDIR /var/www
 
 RUN echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.remote_port=9000" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
@@ -67,6 +83,8 @@ RUN curl -o /usr/local/bin/n99 https://files.magerun.net/n98-magerun2.phar && ch
 
 RUN ln -s /opt/data/magento1 /var/www/ \
     ; ln -s /opt/data/magento2 /var/www/
+
+WORKDIR /var/www
 
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
