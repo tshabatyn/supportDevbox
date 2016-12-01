@@ -6,12 +6,16 @@
 #### 2. Add IP alias, on your host machine, for enable Xdebug
    * `sudo ifconfig lo0 alias 10.254.254.254 netmask 255.255.255.0`
 
-#### 3. Init submodules
-   * `git submodule init`
-   * `git submodule update`
+#### 3. Install docker-sync
+   * `sudo gem install docker-sync`
+   * `brew install fswatch`
+   * `brew install unison`
 
-#### 4. Create and run containers
-   * `docker-compose -f env/docker-compose.yml up -d --remove-orphans --force-recreate --build`
+#### 4. Tune your host maxfilesperproc
+   * `sudo sysctl -w kern.maxfilesperproc=10000`
+
+#### 5. Run docker's containers
+   * `docker-sync-stack start`
 
 # Available tools
 

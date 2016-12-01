@@ -1,0 +1,22 @@
+options:
+  verbose: true
+
+syncs:
+  unison-sync-magento1:
+    sync_strategy: 'unison'
+    src: '../magento1'
+    dest: '/var/www/magento1'
+    notify_terminal: true
+    max_inotify_watches: 10000
+  unison-sync-magento2:
+    sync_strategy: 'unison'
+    src: '../magento2'
+    dest: '/var/www/magento2'
+    notify_terminal: true
+    max_inotify_watches: 10000
+  unison-sync-xhgui:
+    sync_strategy: 'unison'
+    src: './php/tools/xhgui'
+    dest: '/var/www/xhgui'
+    notify_terminal: true
+    max_inotify_watches: 10000

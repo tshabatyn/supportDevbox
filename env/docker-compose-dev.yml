@@ -1,0 +1,16 @@
+version: '2'
+
+services:
+  data:
+    container_name: support_data_11
+    image: alpine
+    command: /bin/sh
+    volumes:
+      - unison-sync-magento1:/var/www/magento1:rw
+      - unison-sync-magento2:/var/www/magento2:rw
+
+volumes:
+  unison-sync-magento1:
+    external: true
+  unison-sync-magento2:
+    external: true

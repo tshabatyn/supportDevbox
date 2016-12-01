@@ -93,8 +93,8 @@ RUN echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.i
     && echo ";xdebug.profiler_enable_trigger=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo ";xdebug.profiler_output_dir = "/var/www/magento/var/tmp"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini
 
-RUN ln -s /opt/data/magento1 /var/www/ \
-    ; ln -s /opt/data/magento2 /var/www/
+#RUN ln -s /opt/data/magento1 /var/www/ \
+#    ; ln -s /opt/data/magento2 /var/www/
 
 WORKDIR /var/www
 

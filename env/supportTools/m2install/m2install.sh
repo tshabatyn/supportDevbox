@@ -440,8 +440,6 @@ function restore_db()
 
 function restore_code()
 {
-#    overwriteVendorDir
-
     EXTRACT_FILENAME=$FILENAME_CODE_DUMP
     extract
 
@@ -463,7 +461,6 @@ function configure_db()
     clearBaseLinks
     clearCookieDomain
     clearCustomAdmin
-#    restoreVendorDir
     resetAdminPassword
 }
 
@@ -508,41 +505,6 @@ function resetAdminPassword()
         --admin-firstname='Magento'
         --admin-lastname='User'"
     runCommand
-}
-
-function overwriteVendorDir()
-{
-    cd /var/www/magento2
-
-    if [ -L vendor ]; then
-        unlink vendor
-    fi
-
-    if [ ! -d vendor ]; then
-        mkdir -p vendor
-    fi
-
-    if [ -d ../vendor ]; then
-        rm -rf ../vendor
-    fi
-
-    if [ -d vendor ] && [ ! -L vendor ]
-    then
-        mv vendor ../vendor
-        ln -s ../vendor vendor
-    fi
-}
-
-function restoreVendorDir()
-{
-    cd /var/www/magento2
-
-    if [ -L vendor ]; then
-        unlink vendor
-    fi
-    if [ -d /var/www/vendor ] && [ ! -d /var/www/magento2/vendor ]; then
-        mv /var/www/vendor /var/www/magento2/vendor
-    fi
 }
 
 function overwriteOriginalFiles()
@@ -1178,7 +1140,6 @@ else
     fi
     addStep "linkEnterpriseEdition"
     addStep "runComposerInstall"
-#    addStep "restoreVendorDir"
     addStep "installMagento"
     if [[ "${USE_SAMPLE_DATA}" ]]; then
         addStep "installSampleData"

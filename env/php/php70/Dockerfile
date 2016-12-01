@@ -81,8 +81,8 @@ RUN echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.i
 RUN curl -o /usr/local/bin/n98 https://files.magerun.net/n98-magerun.phar && chmod +x /usr/local/bin/n98
 RUN curl -o /usr/local/bin/n99 https://files.magerun.net/n98-magerun2.phar && chmod +x /usr/local/bin/n99
 
-RUN ln -s /opt/data/magento1 /var/www/ \
-    ; ln -s /opt/data/magento2 /var/www/
+#RUN ln -s /opt/data/magento1 /var/www/ \
+#    ; ln -s /opt/data/magento2 /var/www/
 
 WORKDIR /var/www
 
