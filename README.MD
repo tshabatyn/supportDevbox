@@ -12,7 +12,7 @@
    * `brew install unison`
 
 #### 4. Tune your host maxfilesperproc
-   * `sudo sysctl -w kern.maxfilesperproc=10000`
+   * `sudo sysctl -w kern.maxfilesperproc=100000`
 
 #### 5. Run docker's containers
    * `docker-sync-stack start`
