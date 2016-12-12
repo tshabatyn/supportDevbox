@@ -6,11 +6,14 @@ services:
     image: alpine
     command: /bin/sh
     volumes:
-      - unison-sync-magento1:/var/www/magento1:rw
-      - unison-sync-magento2:/var/www/magento2:rw
+      - magento1-rsync-sync:/var/www/magento1:rw
+      - magento2-rsync-sync:/var/www/magento2:rw
+      - xhgui-rsync-sync:/var/www/xhgui:rw
 
 volumes:
-  unison-sync-magento1:
+  magento1-rsync-sync:
     external: true
-  unison-sync-magento2:
+  magento2-rsync-sync:
+    external: true
+  xhgui-rsync-sync:
     external: true

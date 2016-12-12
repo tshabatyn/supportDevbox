@@ -17,6 +17,13 @@
 #### 5. Run docker's containers
    * `docker-sync-stack start`
 
+#### 6. Add virtual hosts to your hosts file
+`0.0.0.0	magento1.local	php55.magento1.local	php56.magento1.local	php70.magento1.local	php71.magento1.local`
+
+`0.0.0.0	magento2.local	php55.magento2.local	php56.magento2.local	php70.magento2.local	php71.magento2.local`
+
+`0.0.0.0	xhgui.local`
+
 # Available tools
 
 ### xhprof + xhgui for profiling PHP code

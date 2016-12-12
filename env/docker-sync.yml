@@ -1,22 +1,66 @@
 options:
   verbose: true
-
+  image: 'eugenmayer/rsync'
+  cli_mode: 'auto'
+#  rsync_image: 'eugenmayer/rsync'
+#  unison_image: 'eugenmayer/unison'
 syncs:
-  unison-sync-magento1:
-    sync_strategy: 'unison'
-    src: '../magento1'
-    dest: '/var/www/magento1'
-    notify_terminal: true
-    max_inotify_watches: 100000
-  unison-sync-magento2:
-    sync_strategy: 'unison'
-    src: '../magento2'
-    dest: '/var/www/magento2'
-    notify_terminal: true
-    max_inotify_watches: 100000
-  unison-sync-xhgui:
-    sync_strategy: 'unison'
+#  unison-sync-magento1:
+#    sync_strategy: 'unison'
+#    src: '../magento1'
+#    dest: '/var/www/magento1'
+#    notify_terminal: true
+#    max_inotify_watches: 5000000
+
+#  magento2-unison-sync:
+#    sync_strategy: 'unison'
+#    sync_excludes: [ '.git', '.idea', 'node_modules' ]
+#    src: '../magento2'
+#    dest: '/var/www/magento2'
+#    notify_terminal: true
+#    max_inotify_watches: 5000000
+#  unison-sync-xhgui:
+#    sync_strategy: 'unison'
+#    src: './php/tools/xhgui'
+#    dest: '/var/www/xhgui'
+#    notify_terminal: true
+#    max_inotify_watches: 5000000
+
+  xhgui-rsync-sync:
     src: './php/tools/xhgui'
     dest: '/var/www/xhgui'
+    sync_args: '-v --copy-links --hard-links --delete' # delete files on the container if they are deleted on the host
+    sync_host_ip: 'localhost'
+    sync_host_port: 10872
+    sync_user: 'root'
+    sync_userid: '0'
+    sync_group: 'root'
+    sync_groupid: '0'
+    watch_args: '-v' # make fswatch verbose
     notify_terminal: true
-    max_inotify_watches: 100000
+
+  magento1-rsync-sync:
+    src: '../magento1'
+    dest: '/var/www/magento1'
+    sync_args: '-v --copy-links --hard-links --delete' # delete files on the container if they are deleted on the host
+    sync_host_ip: 'localhost'
+    sync_host_port: 10873
+    sync_user: 'root'
+    sync_userid: '0'
+    sync_group: 'root'
+    sync_groupid: '0'
+    watch_args: '-v' # make fswatch verbose
+    notify_terminal: true
+
+  magento2-rsync-sync:
+    src: '../magento2'
+    dest: '/var/www/magento2'
+    sync_args: '-v --copy-links --hard-links --delete' # delete files on the container if they are deleted on the host
+    sync_host_ip: 'localhost'
+    sync_host_port: 10874
+    sync_user: 'root'
+    sync_userid: '0'
+    sync_group: 'root'
+    sync_groupid: '0'
+    watch_args: '-v' # make fswatch verbose
+    notify_terminal: true

@@ -78,13 +78,19 @@ RUN echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.i
     && echo ";xdebug.profiler_enable_trigger=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.profiler_output_dir = "/var/www/magento2/var/tmp"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini
 
-RUN curl -o /usr/local/bin/n98 https://files.magerun.net/n98-magerun.phar && chmod +x /usr/local/bin/n98
-RUN curl -o /usr/local/bin/n99 https://files.magerun.net/n98-magerun2.phar && chmod +x /usr/local/bin/n99
+RUN echo "opcache.max_accelerated_files=7963" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini \
+    && echo "opcache.memory_consumption=192MB" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini \
+    && echo "opcache.validate_timestamps=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini \
+    && echo "opcache.revalidate_freq=60" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini \
+    && echo "opcache.interned_strings_buffer=16" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini \
+    && echo "opcache.fast_shutdown=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini
 
-#RUN ln -s /opt/data/magento1 /var/www/ \
-#    ; ln -s /opt/data/magento2 /var/www/
+RUN curl -o /usr/local/bin/n98-magerun2 https://files.magerun.net/n98-magerun2.phar \
+    && chmod +x /usr/local/bin/n98-magerun2
 
-WORKDIR /var/www
+ENV PHP_IDE_CONFIG="serverName=magento.local"
+
+WORKDIR /var/www/magento2
 
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

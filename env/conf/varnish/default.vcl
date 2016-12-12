@@ -13,7 +13,7 @@ probe healthcheck {
         "User-Agent: varnish-probe"
         "Accept: */*";
     .timeout = 0.5s;
-    .interval = 30s;
+    .interval = 60s;
     .window = 5;
     .threshold = 2;
     .expected_response = 200;
