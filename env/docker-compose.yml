@@ -17,10 +17,12 @@ services:
     container_name: support_php-data_11
     image: alpine
     command: /bin/sh
+    links:
+      - mysql56
     volumes_from:
       - data
     volumes:
-      - db-data:/var/run/mysqld/
+      - db:/var/run/mysqld/
       - ./conf/composer/auth.json:/root/.composer/auth.json:ro
       - ./conf/smtp/msmtprc:/etc/msmtprc:ro
       - ./supportTools/restore/restore.sh:/usr/local/bin/restore.sh:ro
@@ -42,7 +44,6 @@ services:
 #      - php71
       - php56
       - php70
-      - solr
     networks:
       default:
         aliases:
@@ -69,7 +70,7 @@ services:
       - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
 
 
-## Varnish cache
+# Varnish cache
 #  varnish:
 #    container_name: support_varnish_11
 #    restart: always
@@ -92,11 +93,9 @@ services:
 #        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
 #    links:
 #      - redis
-##      - mariadb:db
 #      - mysql56:db
 #      - mailcatcher
 #      - mongo # we need it for xhprof
-#      - solr
 #    volumes_from:
 #      - php-data
 #    volumes:
@@ -113,11 +112,9 @@ services:
         php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
     links:
       - redis
-#      - mariadb:db
       - mysql56:db
       - mailcatcher
       - mongo # we need it for xhprof
-      - solr
     volumes_from:
       - php-data
     volumes:
@@ -134,11 +131,9 @@ services:
         php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
     links:
       - redis
-#      - mariadb:db
       - mysql56:db
       - mailcatcher
       - mongo # we need it for xhprof
-      - solr
     volumes_from:
       - php-data
     ports:
@@ -152,11 +147,9 @@ services:
 #        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
 #    links:
 #      - redis
-##      - mariadb:db
 #      - mysql56:db
 #      - mailcatcher
 #      - mongo # we need it for xhprof
-#      - solr
 #    volumes_from:
 #      - php-data
 #    ports:
@@ -172,54 +165,42 @@ services:
 
 
 # DB
-#  mariadb:
-#    container_name: support_mariadb_11
-#    image: mariadb:latest
-#    env_file:
-#      - ./conf/db/mysql.env
-#    volumes:
-#      - db-data:/var/run/mysqld/
-#      - ./data/mariadb/data:/var/lib/mysql
-#      - ./data/mariadb/logs/mysql:/var/log/mysql
-#      - ./conf/db/.my.cnf:/root/.my.cnf:ro
-#      - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
-
   mysql56:
     container_name: support_mysql56_11
     image: mysql:5.6
     env_file:
       - ./conf/db/mysql.env
     volumes:
-      - db-data:/var/run/mysqld/
+      - db:/var/run/mysqld/
       - ./data/mysql56/data:/var/lib/mysql
-      - ./data/mysql56/logs/mysql:/var/log/mysql
+#      - ./data/mysql56/logs/mysql:/var/log/mysql
       - ./conf/db/.my.cnf:/root/.my.cnf:ro
       - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
 
 # Jobs/ Queues
-  rabbit:
-    container_name: support_rabbit_11
-    restart: always
-    image: rabbitmq:3-management
-    environment:
-      - RABBITMQ_DEFAULT_USER=magento2
-      - RABBITMQ_DEFAULT_PASS=magento2
-    ports:
-      - "8282:15672"
-      - "5672:5672"
+#  rabbit:
+#    container_name: support_rabbit_11
+#    restart: always
+#    image: rabbitmq:3-management
+#    environment:
+#      - RABBITMQ_DEFAULT_USER=magento2
+#      - RABBITMQ_DEFAULT_PASS=magento2
+#    ports:
+#      - "8282:15672"
+#      - "5672:5672"
 
 # Search engines
-  solr:
-    container_name: support_solr_11
-    build:
-      context: ./solr36
-      args:
-        SOLR_VERSION: "3.6.2"
-        SOLR_KEY: "322D7ECA"
-        SOLR_SOURCE_SHA256_HASH: "3a1a40542670ea6efec246a081053732c5503ec1"
-    ports:
-      - "8983:8983"
-
+#  solr:
+#    container_name: support_solr_11
+#    build:
+#      context: ./solr36
+#      args:
+#        SOLR_VERSION: "3.6.2"
+#        SOLR_KEY: "322D7ECA"
+#        SOLR_SOURCE_SHA256_HASH: "3a1a40542670ea6efec246a081053732c5503ec1"
+#    ports:
+#      - "8983:8983"
+#
   elasticsearch:
     container_name: support_elasticsearch_11
     restart: always
@@ -247,4 +228,4 @@ services:
     image: mongo:3.2
 
 volumes:
-  db-data: {}
+  db: {}

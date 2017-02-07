@@ -345,6 +345,9 @@ function updateLocalXml()
     _updateLocalXmlParam
 
     CACHE_PREFIX=$(echo "${INSTANCE_NAME}" | tr '[:lower:]' '[:upper:]');
+
+    echo "\nCACHE_PREFIX is set to ${CACHE_PREFIX}\n"
+
     sed "s/<prefix>CACHE_<\/prefix>/<prefix><\!\[CDATA\[CACHE_${CACHE_PREFIX}_\]\]><\/prefix>/" $LOCALXMLPATH > $LOCALXMLPATH.new
     mv -f $LOCALXMLPATH.new $LOCALXMLPATH
     sed "s/<prefix>FPC_<\/prefix>/<prefix><\!\[CDATA\[FPC_${CACHE_PREFIX}_\]\]><\/prefix>/" $LOCALXMLPATH > $LOCALXMLPATH.new
@@ -353,7 +356,7 @@ function updateLocalXml()
 
 function _updateLocalXmlParam()
 {
-    sed "s/<${LOCALXML_PARAM_NAME}><\!\[CDATA\[.*\]\]><\/${LOCALXML_PARAM_NAME}>/<${LOCALXML_PARAM_NAME}><\!\[CDATA\[${LOCALXML_VALUE}\]\]><\/${LOCALXML_PARAM_NAME}>/" $LOCALXMLPATH > $LOCALXMLPATH.new
+    sed "s~<${LOCALXML_PARAM_NAME}><\!\[CDATA\[.*\]\]></${LOCALXML_PARAM_NAME}>~<${LOCALXML_PARAM_NAME}><\!\[CDATA\[${LOCALXML_VALUE}\]\]></${LOCALXML_PARAM_NAME}>~" $LOCALXMLPATH > $LOCALXMLPATH.new
     mv -f $LOCALXMLPATH.new $LOCALXMLPATH
 }
 
@@ -690,7 +693,7 @@ function getOrigLocalXml()
                 <compress_tags>1</compress_tags>
                 <lifetimelimit>43200</lifetimelimit>
                 <compress_data>0</compress_data>
-                <compression_lib>gzip</compression_lib>
+                <compression_lib>lzf</compression_lib>
             </backend_options>
         </full_page_cache>
         <cache>
@@ -710,7 +713,7 @@ function getOrigLocalXml()
                 <lifetimelimit>43200</lifetimelimit>
                 <compress_tags>1</compress_tags>
                 <compress_threshold>409600</compress_threshold>
-                <compression_lib>gzip</compression_lib>
+                <compression_lib>lzf</compression_lib>
             </backend_options>
         </cache>
         <resources>
@@ -740,7 +743,7 @@ function getOrigLocalXml()
             <persistent></persistent>
             <db>2</db>
             <compression_threshold>2048</compression_threshold>
-            <compression_lib>gzip</compression_lib>
+            <compression_lib>lzf</compression_lib>
             <log_level>4</log_level>
             <max_concurrency>6</max_concurrency>
             <break_after_frontend>5</break_after_frontend>

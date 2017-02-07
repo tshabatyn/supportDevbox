@@ -1,23 +1,65 @@
 [mysqld]
+## After edit config you have to remove log files and restart mysql server
+## because after changing innodb-log-file-size you should recreate ib_logfiles
+## Stop MySQL server
+## rm /data/dir/ib_logfile*
+## Run MySQL server
 
-#slow_query_log = 1
-#slow_query_log_file = /var/log/mysql/db-slow.log
-#long_query_time = 1
+##Table open cache under MacOS and MySQL 5.6 should be 250.
+##Otherwise you will get error MySQL server has gone away
+table-open-cache                     = 250
+
+## Logging slow queries
+slow_query_log                       = 0
+#slow_query_log_file                 = /var/log/mysql/db-slow.log
+#long_query_time                     = 1
+
+## Cache
+table-definition-cache               = 4096
+thread-cache-size                    = 256
+query-cache-size                     = 64M
+query-cache-type                     = 1
+
+## Per-thread Buffers
+sort-buffer-size                     = 16M
+
+## Temp Tables
+max-heap-table-size                  = 512M
+tmp-table-size                       = 512M
 
 # InnoDB.
-default_storage_engine = InnoDB
-transaction-isolation = READ-COMMITTED
+default_storage_engine               = InnoDB
+transaction-isolation                = READ-COMMITTED
 
-innodb_buffer_pool_size = 512MB
-max_connections = 40
+## Networking
+interactive-timeout                  = 3600
+max_connections                      = 40
+max-connect-errors                   = 1000000
+max-allowed-packet                   = 512M
+# The following values, in seconds, 8 * 60 * 60 = 28800
+wait-timeout                         = 28800
+net-write-timeout                    = 28800
+net-read-timeout                     = 28800
 
-tmp_table_size = 256M
-max_heap_table_size = 256M
+## MyISAM
+key-buffer-size                      = 256M
+#myisam-recover                      = FORCE,BACKUP
+myisam-sort-buffer-size              = 128M
 
-innodb_log_file_size = 100M
-innodb_file_per_table = OFF
-innodb_flush_log_at_trx_commit = 2
-innodb_flush_method = O_DIRECT
-innodb_log_buffer_size = 8M
+## InnoDB
+# Decrease pressure to persistent storage I/O
+innodb_io_capacity                   = 60
+innodb_doublewrite                   = OFF
+innodb_max_dirty_pages_pct           = 75
+innodb_max_dirty_pages_pct_lwm       = 60
+innodb_buffer_pool_instances         = 1
+
+innodb-buffer-pool-size              = 512MB
+innodb-log-file-size                 = 256M
+innodb_log_buffer_size               = 8M
+innodb-thread-concurrency            = 18
+innodb_flush_log_at_trx_commit       = 2
+innodb_file_per_table                = 1
+innodb_flush_method                  = O_DIRECT
 
 sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES

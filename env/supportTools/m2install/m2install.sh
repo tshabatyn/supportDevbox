@@ -28,7 +28,7 @@ DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=
 
-COMPOSER_VERSION='2.0.0'
+MAGENTO_VERSION=2.1
 
 DB_NAME=
 USE_SAMPLE_DATA=
@@ -38,7 +38,6 @@ USE_WIZARD=1
 
 GIT_CE_REPO=
 GIT_EE_REPO=
-GIT_BRANCH=develop
 
 SOURCE=
 FORCE=
@@ -199,7 +198,11 @@ function getCodeDumpFilename()
     fi
     if [ ! "$FILENAME_CODE_DUMP" ]
     then
-        FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*_code.tgz' | head -n1)
+        FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*.tgz' | head -n1)
+    fi
+    if [ ! "$FILENAME_CODE_DUMP" ]
+    then
+        FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*.zip' | head -n1)
     fi
 }
 
@@ -259,8 +262,21 @@ function wizard()
     then
         USE_SAMPLE_DATA=1
     fi
-    askValue "Enter Path to EE or [nN] to skip EE installation" "${MAGENTO_EE_PATH}"
-    MAGENTO_EE_PATH=${READVALUE}
+}
+
+function noSourceWizard()
+{
+    if [[ "$SOURCE" ]]
+    then
+        return;
+    fi
+    if [[ ! "$SOURCE" ]] && askConfirmation "Do you want install Enterprise Edition (y/N)"
+    then
+        askValue "Enter path to the directory with Enterprise Edition it will be linked" "${MAGENTO_EE_PATH}"
+        MAGENTO_EE_PATH=${READVALUE}
+    else
+        MAGENTO_EE_PATH=
+    fi
 }
 
 function printConfirmation()
@@ -283,7 +299,7 @@ function printConfirmation()
     fi
     if [ "${MAGENTO_EE_PATH}" ]
     then
-        printString "Magento EE will be installed from ${MAGENTO_EE_PATH}"
+        printString "Magento EE will be installed"
     else
         printString "Magento EE will NOT be installed."
     fi
@@ -298,6 +314,7 @@ function showWizard()
         then
             showComposerWizzard
             showWizzardGit
+            noSourceWizard
             wizard
         fi
         printLine
@@ -338,6 +355,10 @@ function loadConfigFile()
             USE_WIZARD=0
         fi
     fi
+    if [ ! "$NEAREST_CONFIG_FILE" ]
+    then
+        NEAREST_CONFIG_FILE="$HOME/$CONFIG_NAME"
+    fi
     generateDBName
 }
 
@@ -367,11 +388,10 @@ BASE_PATH=$_local
 DB_HOST=$DB_HOST
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
-COMPOSER_VERSION=$COMPOSER_VERSION
+MAGENTO_VERSION=$MAGENTO_VERSION
 MAGENTO_EE_PATH=$MAGENTO_EE_PATH
 GIT_CE_REPO=$GIT_CE_REPO
 GIT_EE_REPO=$GIT_EE_REPO
-GIT_BRANCH=$GIT_BRANCH
 EOF
 )
         _currentConfigContent=$(cat "$NEAREST_CONFIG_FILE")
@@ -391,11 +411,10 @@ BASE_PATH=$_local
 DB_HOST=$DB_HOST
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
-COMPOSER_VERSION=$COMPOSER_VERSION
+MAGENTO_VERSION=$MAGENTO_VERSION
 MAGENTO_EE_PATH=$MAGENTO_EE_PATH
 GIT_CE_REPO=$GIT_CE_REPO
 GIT_EE_REPO=$GIT_EE_REPO
-GIT_BRANCH=$GIT_BRANCH
 EOF
             printString "Config file has been created in ~/$CONFIG_NAME";
         fi
@@ -414,15 +433,16 @@ function createNewDB()
     mysqlQuery
 }
 
-function recreateDB()
+function tuneAdminSessionLifetime()
 {
-    SQLQUERY="DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE IF NOT EXISTS ${DB_NAME}";
+    SQLQUERY="DELETE FROM ${DB_NAME}.core_config_data WHERE path = 'admin/security/session_lifetime'; INSERT IGNORE INTO ${DB_NAME}.core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'admin/security/session_lifetime', '31536000');";
     mysqlQuery
 }
 
 function restore_db()
 {
-    recreateDB
+    dropDB
+    createNewDB
 
     getDbDumpFilename
 
@@ -472,7 +492,7 @@ function updateBaseUrl()
 
 function clearBaseLinks()
 {
-    SQLQUERY="DELETE FROM ${DB_NAME}.${TBL_PREFIX}core_config_data WHERE path IN ('web/unsecure/base_link_url', 'web/secure/base_link_url')";
+    SQLQUERY="DELETE FROM ${DB_NAME}.${TBL_PREFIX}core_config_data WHERE path IN ('web/unsecure/base_link_url', 'web/secure/base_link_url', 'web/unsecure/base_static_url', 'web/unsecure/base_media_url', 'web/secure/base_static_url', 'web/secure/base_media_url')";
     mysqlQuery
 }
 
@@ -520,7 +540,7 @@ function overwriteOriginalFiles()
         CMD="mv .htaccess .htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o .htaccess https://raw.githubusercontent.com/magento/magento2/2.0/.htaccess"
+    CMD="curl -s -o .htaccess https://raw.githubusercontent.com/magento/magento2/2.1/.htaccess"
     runCommand
 
     if [ -f pub/static/.htaccess ]
@@ -528,7 +548,7 @@ function overwriteOriginalFiles()
         CMD="mv pub/static/.htaccess pub/static/.htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o pub/static/.htaccess https://raw.githubusercontent.com/magento/magento2/2.0/pub/static/.htaccess"
+    CMD="curl -s -o pub/static/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/static/.htaccess"
     runCommand
 
     if [ -f pub/media/.htaccess ]
@@ -536,7 +556,7 @@ function overwriteOriginalFiles()
         CMD="mv pub/media/.htaccess pub/media/.htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o pub/media/.htaccess https://raw.githubusercontent.com/magento/magento2/2.0/pub/media/.htaccess"
+    CMD="curl -s -o pub/media/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/media/.htaccess"
     runCommand
 }
 
@@ -577,6 +597,9 @@ return array(
                   'server' => 'redis',
                   'port' => '6379',
                   'database' => '0',
+                  'compress_data' => '1',
+                  'compression_threshold' => '2048',
+                  'compression_library' => 'lzf',
                 ),
             ),
           'page_cache' =>
@@ -587,7 +610,9 @@ return array(
                   'server' => 'redis',
                   'port' => '6379',
                   'database' => '1',
-                  'compress_data' => '0'
+                  'compress_data' => '0',
+                  'compression_threshold' => '2048',
+                  'compression_library' => 'lzf',
                 )
             )
         )
@@ -604,7 +629,7 @@ return array(
           'persistent_identifier' => '',
           'database' => '2',
           'compression_threshold' => '2048',
-          'compression_library' => 'gzip',
+          'compression_library' => 'lzf',
           'log_level' => '1',
           'max_concurrency' => '6',
           'break_after_frontend' => '5',
@@ -718,17 +743,6 @@ function deployStaticContent()
     runCommand
 }
 
-function generateStaticFiles()
-{
-    if [[ "$MAGE_MODE" == "dev" ]]
-    then
-        return;
-    fi
-
-    CMD="${BIN_MAGE} setup:static-content:deploy -f"
-    runCommand
-}
-
 function compileDi()
 {
     if [[ "$MAGE_MODE" == "dev" ]]
@@ -827,7 +841,8 @@ function installMagento()
     CMD="${BIN_MAGE} --no-interaction setup:uninstall"
     runCommand
 
-    recreateDB
+    dropDB
+    createNewDB
 
     CMD="${BIN_MAGE} setup:install \
     --base-url=${BASE_URL} \
@@ -873,10 +888,10 @@ function composerInstall()
 {
     if [ "$MAGENTO_EE_PATH" ]
     then
-        CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-enterprise-edition . ${COMPOSER_VERSION}"
+        CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-enterprise-edition . ${MAGENTO_VERSION}"
         runCommand
     else
-        CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-community-edition . $COMPOSER_VERSION"
+        CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-community-edition . $MAGENTO_VERSION"
         runCommand
     fi
 }
@@ -887,8 +902,14 @@ showComposerWizzard()
     then
         return;
     fi
-    askValue "Composer Magento version" ${COMPOSER_VERSION}
-    COMPOSER_VERSION=${READVALUE}
+    askValue "Composer Magento version" ${MAGENTO_VERSION}
+    MAGENTO_VERSION=${READVALUE}
+    if askConfirmation "Do you want to install Enterprise Edition (y/N)"
+    then
+        MAGENTO_EE_PATH="y"
+    else
+        MAGENTO_EE_PATH=
+    fi
 
 }
 
@@ -899,7 +920,7 @@ printComposerConfirmation()
         return;
     fi
     printString "Magento code will be downloaded from composer";
-    printString "Composer version: $COMPOSER_VERSION";
+    printString "Composer version: $MAGENTO_VERSION";
 }
 
 function showWizzardGit()
@@ -912,15 +933,22 @@ function showWizzardGit()
     GIT_CE_REPO=${READVALUE}
     askValue "Git EE repository" ${GIT_EE_REPO}
     GIT_EE_REPO=${READVALUE}
-    askValue "Git branch" ${GIT_BRANCH}
-    GIT_BRANCH=${READVALUE}
+    askValue "Git branch" ${MAGENTO_VERSION}
+    MAGENTO_VERSION=${READVALUE}
+    if askConfirmation "Do you want to install Enterprise Edition (y/N)"
+    then
+        askValue "Enter path to the directory with Enterprise Edition" "${MAGENTO_EE_PATH}"
+        MAGENTO_EE_PATH=${READVALUE}
+    else
+        MAGENTO_EE_PATH=
+    fi
 }
 
 function gitClone()
 {
     CMD="${BIN_GIT} clone $GIT_CE_REPO ."
     runCommand
-    CMD="${BIN_GIT} checkout $GIT_BRANCH"
+    CMD="${BIN_GIT} checkout $MAGENTO_VERSION"
     runCommand
 
     if [[ "$GIT_EE_REPO" ]] && [[ "$MAGENTO_EE_PATH" ]]
@@ -929,7 +957,7 @@ function gitClone()
         runCommand
         CMD="cd ${MAGENTO_EE_PATH}"
         runCommand
-        CMD="${BIN_GIT} checkout $GIT_BRANCH"
+        CMD="${BIN_GIT} checkout $MAGENTO_VERSION"
         runCommand
         CMD="cd .."
         runCommand
@@ -945,7 +973,7 @@ function printGitConfirmation()
     printString "Magento code will be downloaded from GIT";
     printString "Git CE repository: ${GIT_CE_REPO}"
     printString "Git EE repository: ${GIT_EE_REPO}"
-    printString "Git branch: ${GIT_BRANCH}"
+    printString "Git branch: ${MAGENTO_VERSION}"
 }
 
 function checkArgumentHasValue()
@@ -1016,6 +1044,8 @@ function setFilesystemPermission()
 {
     CMD="chmod -R a+rwX ./var ./pub/media ./pub/static ./app/etc"
     runCommand
+    CMD="chmod -R a+x ./bin/magento"
+    runCommand
 }
 
 function printUsage()
@@ -1031,7 +1061,7 @@ Options:
     -f, --force                          Install/Restore without any confirmations.
     --sample-data (yes, no)              Install sample data.
     --ee-path (/path/to/ee)              Path to Enterprise Edition.
-    --git-branch (branch name)           Specify Git Branch.
+    -v, --version                        Magento Version - it means: Composer version or GIT Branch
     --mode (dev, prod)                   Magento Mode. Dev mode does not generate static & di content.
     --quiet                              Quiet mode. Suppress output all commands
     --step (restore_code,restore_db      Specify step through comma without spaces.
@@ -1071,7 +1101,12 @@ do
         ;;
         -b|--git-branch)
             checkArgumentHasValue "$1" "$2"
-            GIT_BRANCH="$2"
+            MAGENTO_VERSION="$2"
+            shift
+        ;;
+        -v|--version)
+            checkArgumentHasValue "$1" "$2"
+            MAGENTO_VERSION="$2"
             shift
         ;;
         --mode)
@@ -1130,12 +1165,17 @@ elif foundSupportBackupFiles; then
     addStep "setFilesystemPermission"
     if [[ "$MAGE_MODE" == "production" ]]
     then
-#        addStep "compileDi"
-        addStep "deployStaticContent"
-        addStep "generateStaticFiles"
+        addStep "compileDi"
     fi
+    addStep "deployStaticContent"
 else
-    if [[ "${SOURCE}" ]]; then
+    if [[ "${SOURCE}" ]]
+    then
+        if askConfirmation "Current directory is not empty. Do you want to clean current Directory (y/N)"
+        then
+            CMD="ls -A | xargs rm -rf"
+            runCommand
+        fi
         addStep "downloadSourceCode"
     fi
     addStep "linkEnterpriseEdition"
@@ -1146,10 +1186,10 @@ else
     fi
     if [[ "$MAGE_MODE" == "production" ]]; then
         addStep "setProductionMode"
-        addStep "deployStaticContent"
-        addStep "generateStaticFiles"
     fi
+    addStep "configure_files"
     addStep "setFilesystemPermission"
+    addStep "deployStaticContent"
 fi
 
 for step in "${STEPS[@]}"

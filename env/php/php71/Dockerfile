@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     msmtp \
     patch \
+    pv \
     less
 
 RUN apt-get install -y libmagickwand-6.q16-dev \
@@ -37,6 +38,8 @@ RUN pecl install oauth-1.2.3 && docker-php-ext-enable oauth
 RUN ln -s /usr/lib/x86_64-linux-gnu/ImageMagick-6.8.9/bin-Q16/MagickWand-config /usr/bin/ \
     && pecl install imagick \
     && docker-php-ext-enable imagick
+
+RUN pecl install lzf && docker-php-ext-enable lzf
 
 RUN apt-get purge -y libmagickwand-6.q16-dev \
     libfreetype6-dev \
@@ -87,6 +90,8 @@ RUN echo "opcache.max_accelerated_files=7963" >> $PHP_INI_DIR/conf.d/docker-php-
 
 RUN curl -o /usr/local/bin/n98-magerun2 https://files.magerun.net/n98-magerun2.phar \
     && chmod +x /usr/local/bin/n98-magerun2
+
+RUN ln -s /usr/local/bin/php /usr/bin/php
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 

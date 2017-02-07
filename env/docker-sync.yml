@@ -29,7 +29,7 @@ syncs:
   xhgui-rsync-sync:
     src: './php/tools/xhgui'
     dest: '/var/www/xhgui'
-    sync_args: '-v --copy-links --hard-links --delete' # delete files on the container if they are deleted on the host
+    sync_args: '-v --copy-links --hard-links' # delete files on the container if they are deleted on the host
     sync_host_ip: 'localhost'
     sync_host_port: 10872
     sync_user: 'root'
@@ -37,12 +37,13 @@ syncs:
     sync_group: 'root'
     sync_groupid: '0'
     watch_args: '-v' # make fswatch verbose
+    sync_excludes: [ '.git', '.idea' ]
     notify_terminal: true
 
-  magento1-rsync-sync:
-    src: '../magento1'
-    dest: '/var/www/magento1'
-    sync_args: '-v --copy-links --hard-links --delete' # delete files on the container if they are deleted on the host
+  www-rsync-sync:
+    src: '../www'
+    dest: '/var/www'
+    sync_args: '-v --copy-links --hard-links' # delete files on the container if they are deleted on the host
     sync_host_ip: 'localhost'
     sync_host_port: 10873
     sync_user: 'root'
@@ -50,17 +51,19 @@ syncs:
     sync_group: 'root'
     sync_groupid: '0'
     watch_args: '-v' # make fswatch verbose
+    sync_excludes: [ '.git', '.idea', 'node_modules', 'var', 'pub/static', 'pub/media' ]
     notify_terminal: true
 
-  magento2-rsync-sync:
-    src: '../magento2'
-    dest: '/var/www/magento2'
-    sync_args: '-v --copy-links --hard-links --delete' # delete files on the container if they are deleted on the host
-    sync_host_ip: 'localhost'
-    sync_host_port: 10874
-    sync_user: 'root'
-    sync_userid: '0'
-    sync_group: 'root'
-    sync_groupid: '0'
-    watch_args: '-v' # make fswatch verbose
-    notify_terminal: true
+#  magento2-rsync-sync:
+#    src: '../magento2'
+#    dest: '/var/www/magento2'
+#    sync_args: '-v --copy-links --hard-links' # delete files on the container if they are deleted on the host
+#    sync_host_ip: 'localhost'
+#    sync_host_port: 10874
+#    sync_user: 'root'
+#    sync_userid: '0'
+#    sync_group: 'root'
+#    sync_groupid: '0'
+#    watch_args: '-v' # make fswatch verbose
+#    sync_excludes: [ '.git', '.idea', 'node_modules', 'vendor' ]
+#    notify_terminal: true

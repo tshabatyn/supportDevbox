@@ -1,5 +1,7 @@
-<IfModule rewrite_module>
+<IfModule mod_rewrite.c>
+
+    Options +FollowSymLinks
     RewriteEngine On
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule .* index.html [R=200,L]
+
+    RewriteRule .* index.html [L]
 </IfModule>

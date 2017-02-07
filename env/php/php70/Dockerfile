@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     msmtp \
     patch \
+    pv \
     less
 
 RUN apt-get install -y libmagickwand-6.q16-dev \
@@ -23,6 +24,7 @@ RUN apt-get install -y libmagickwand-6.q16-dev \
     libxslt-dev \
     libgringotts-dev \
     libcurl4-openssl-dev \
+    libpcre3-dev \
     --no-install-recommends
 
 ARG php_ext
@@ -38,6 +40,16 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/ImageMagick-6.8.9/bin-Q16/MagickWand-config 
     && pecl install imagick \
     && docker-php-ext-enable imagick
 
+RUN pecl install lzf && docker-php-ext-enable lzf
+
+RUN git clone https://github.com/tideways/php-profiler-extension.git /usr/lib/tideways
+
+RUN cd /usr/lib/tideways \
+    && phpize \
+    && ./configure \
+    && make \
+    && make install
+
 RUN apt-get purge -y libmagickwand-6.q16-dev \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
@@ -46,11 +58,14 @@ RUN apt-get purge -y libmagickwand-6.q16-dev \
     libicu-dev \
     libxslt-dev \
     libgringotts-dev \
-    libcurl4-openssl-dev
+    libcurl4-openssl-dev \
+    libpcre3-dev
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 COPY ./etc/php/conf.d/production-php.ini $PHP_INI_DIR/php.ini
+
+#COPY ./etc/tideways.ini $PHP_INI_DIR/conf.d/05-tideways.ini
 
 COPY ./etc/php/php-fpm.d/development-www.conf /usr/local/etc/php-fpm.d/www.conf
 RUN sed -i 's/www-data/root/g' /usr/local/etc/php-fpm.d/www.conf
@@ -87,6 +102,8 @@ RUN echo "opcache.max_accelerated_files=7963" >> $PHP_INI_DIR/conf.d/docker-php-
 
 RUN curl -o /usr/local/bin/n98-magerun2 https://files.magerun.net/n98-magerun2.phar \
     && chmod +x /usr/local/bin/n98-magerun2
+
+RUN ln -s /usr/local/bin/php /usr/bin/php
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 

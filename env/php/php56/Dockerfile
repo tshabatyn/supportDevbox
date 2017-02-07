@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     msmtp \
     patch \
+    pv \
     less
 
 RUN apt-get install -y libmagickwand-6.q16-dev \
@@ -22,6 +23,7 @@ RUN apt-get install -y libmagickwand-6.q16-dev \
     libxslt-dev \
     libgringotts-dev \
     libcurl4-openssl-dev \
+    libpcre3-dev \
     --no-install-recommends
 
 ARG php_ext
@@ -37,6 +39,18 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/ImageMagick-6.8.9/bin-Q16/MagickWand-config 
     && pecl install imagick \
     && docker-php-ext-enable imagick
 
+RUN pecl install lzf && docker-php-ext-enable lzf
+
+#RUN echo 'deb http://s3-eu-west-1.amazonaws.com/qafoo-profiler/packages debian main' > /etc/apt/sources.list.d/tideways.list && \
+#    curl -sS 'https://s3-eu-west-1.amazonaws.com/qafoo-profiler/packages/EEB5E8F4.gpg' | apt-key add - && \
+#    apt-get update && \
+#    DEBIAN_FRONTEND=noninteractive apt-get -yq install tideways-php && \
+#    apt-get autoremove --assume-yes && \
+#    apt-get clean && \
+#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+#
+#COPY ./etc/tideways.ini /usr/local/etc/php/conf.d/40-tideways.ini
+
 RUN apt-get purge -y libmagickwand-6.q16-dev \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
@@ -45,7 +59,8 @@ RUN apt-get purge -y libmagickwand-6.q16-dev \
     libicu-dev \
     libxslt-dev \
     libgringotts-dev \
-    libcurl4-openssl-dev
+    libcurl4-openssl-dev \
+    libpcre3-dev
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
@@ -100,11 +115,11 @@ RUN echo "opcache.max_accelerated_files=7963" >> $PHP_INI_DIR/conf.d/docker-php-
     && echo "opcache.interned_strings_buffer=16" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini \
     && echo "opcache.fast_shutdown=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini
 
+RUN ln -s /usr/local/bin/php /usr/bin/php
+
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 
 WORKDIR /var/www/magento1
-
-ENV PHP_IDE_CONFIG="serverName=magento1.local"
 
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
