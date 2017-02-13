@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     msmtp \
     patch \
     pv \
+    bash-completion \
     less
 
 RUN apt-get install -y libmagickwand-6.q16-dev \
@@ -92,6 +93,13 @@ RUN curl -o /usr/local/bin/n98-magerun2 https://files.magerun.net/n98-magerun2.p
     && chmod +x /usr/local/bin/n98-magerun2
 
 RUN ln -s /usr/local/bin/php /usr/bin/php
+
+RUN mkdir -p /etc/bash_completion.d/
+RUN curl -o /etc/bash_completion.d/magento2-bash-completion https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion
+RUN curl -o /etc/bash_completion.d/magento2-bash-completion-enterprise https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion-enterprise
+RUN echo "if [ -f /etc/bash_completion ]; then" >> /etc/profile
+RUN echo " . /etc/bash_completion" >> /etc/profile
+RUN echo "fi" >> /etc/profile
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 
