@@ -346,7 +346,6 @@ function loadConfigFile()
             USE_WIZARD=0
         fi
     done
-
     generateDBName
 }
 
@@ -423,7 +422,7 @@ function createNewDB()
 
 function tuneAdminSessionLifetime()
 {
-    SQLQUERY="DELETE FROM ${DB_NAME}.core_config_data WHERE path = 'admin/security/session_lifetime'; INSERT IGNORE INTO ${DB_NAME}.core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'admin/security/session_lifetime', '31536000');";
+    SQLQUERY="INSERT INTO ${DB_NAME}.${TBL_PREFIX}core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'admin/security/session_lifetime', '31536000') ON DUPLICATE KEY UPDATE value='31536000';";
     mysqlQuery
 }
 
@@ -459,7 +458,7 @@ function configure_files()
 {
     updateMagentoEnvFile
     overwriteOriginalFiles
-    CMD="find . -type d -exec chmod 775 {} \; && find . -type f -exec chmod 664 {}"
+    CMD="find . -type d -exec chmod 775 {} \; && find . -type f -exec chmod 664 {} \;"
     runCommand
 
     CMD="find ./pub  -type l -! -exec test -e {} \; -print |xargs unlink"
@@ -817,11 +816,14 @@ function _installSampleDataForBeta()
 
 function linkEnterpriseEdition()
 {
-    if [ "${SOURCE}" == 'composer' ]; then
+    if [ "${SOURCE}" == 'composer' ]
+    then
         return;
     fi
-    if [ "${MAGENTO_EE_PATH}" ]; then
-        if [ ! -d "$MAGENTO_EE_PATH" ]; then
+    if [ "${MAGENTO_EE_PATH}" ]
+    then
+        if [ ! -d "$MAGENTO_EE_PATH" ]
+        then
             printError "There is no Enterprise Edition directory ${MAGENTO_EE_PATH}"
             printError "Use absolute or relative path to EE code base or [N] to skip it"
             exit
@@ -1052,7 +1054,7 @@ function setFilesystemPermission()
 {
     CMD="chmod -R a+x ./bin/magento"
     runCommand
-    CMD="chmod -R a+rwX ./var ./pub/media ./pub/static ./app/etc"
+    CMD="chmod -R 2777 ./var ./pub/media ./pub/static ./app/etc"
     runCommand
 }
 
