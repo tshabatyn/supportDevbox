@@ -330,35 +330,23 @@ function showWizard()
 
 function loadConfigFile()
 {
-    NEAREST_CONFIG_FILE=$( (find "$(pwd)" -maxdepth 1 -name $CONFIG_NAME ;\
-        x=$(pwd);\
-        while [ "$x" != "/" ] ;\
-        do x=$(dirname "$x");\
-            find "$x" -maxdepth 1 -name $CONFIG_NAME;\
-        done) | sed '1!G;h;$!d')
+    local filePath=
+    local configPaths[0]="$HOME/$CONFIG_NAME"
+    configPaths[1]="$HOME/${CONFIG_NAME}.override"
+    configPaths[2]="./$(basename $CONFIG_NAME)"
+    configPaths[3]="/usr/local/bin/$(basename $CONFIG_NAME)"
+    NEAREST_CONFIG_FILE=()
 
-    if [ "$NEAREST_CONFIG_FILE" ]
-    then
-        for FILE in $NEAREST_CONFIG_FILE
-        do
-            # shellcheck source=/dev/null
-            source "$FILE"
-        done
-        USE_WIZARD=0
-    else
-        PATH_CONFIG_FILE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"/${CONFIG_NAME}
-
-        if [ -f ${PATH_CONFIG_FILE} ]
+    for filePath in ${configPaths[@]}
+    do
+        if [ -f "${filePath}" ]
         then
-            NEAREST_CONFIG_FILE=${PATH_CONFIG_FILE}
-            source "$PATH_CONFIG_FILE"
+            NEAREST_CONFIG_FILE+=($filePath)
+            source $filePath
             USE_WIZARD=0
         fi
-    fi
-    if [ ! "$NEAREST_CONFIG_FILE" ]
-    then
-        NEAREST_CONFIG_FILE="$HOME/$CONFIG_NAME"
-    fi
+    done
+
     generateDBName
 }
 
@@ -403,9 +391,9 @@ EOF
 
     fi
 
-    if askConfirmation "Do you want save/override config to ~/$CONFIG_NAME (y/N)"
+    if askConfirmation "Do you want save/override config to $HOME/$CONFIG_NAME (y/N)"
     then
-        cat << EOF > ~/$CONFIG_NAME
+        cat << EOF > $HOME/$CONFIG_NAME
 HTTP_HOST=$HTTP_HOST
 BASE_PATH=$_local
 DB_HOST=$DB_HOST
@@ -416,7 +404,7 @@ MAGENTO_EE_PATH=$MAGENTO_EE_PATH
 GIT_CE_REPO=$GIT_CE_REPO
 GIT_EE_REPO=$GIT_EE_REPO
 EOF
-            printString "Config file has been created in ~/$CONFIG_NAME";
+            printString "Config file has been created in $HOME/$CONFIG_NAME";
         fi
     _local=
 }
@@ -471,7 +459,10 @@ function configure_files()
 {
     updateMagentoEnvFile
     overwriteOriginalFiles
-    CMD="find . -type d -exec chmod 775 {} \; && find . -type f -exec chmod 664 {} \; && chmod u+x bin/magento"
+    CMD="find . -type d -exec chmod 775 {} \; && find . -type f -exec chmod 664 {}"
+    runCommand
+
+    CMD="find ./pub  -type l -! -exec test -e {} \; -print |xargs unlink"
     runCommand
 }
 
@@ -535,7 +526,7 @@ function overwriteOriginalFiles()
         runCommand
     fi
 
-    if [ -f .htaccess ]
+    if [ -f .htaccess ] && [ ! -f .htaccess.merchant ]
     then
         CMD="mv .htaccess .htaccess.merchant"
         runCommand
@@ -543,7 +534,15 @@ function overwriteOriginalFiles()
     CMD="curl -s -o .htaccess https://raw.githubusercontent.com/magento/magento2/2.1/.htaccess"
     runCommand
 
-    if [ -f pub/static/.htaccess ]
+    if [ -f pub/.htaccess ] && [ ! -f pub/.htaccess.merchant ]
+    then
+        CMD="mv pub/.htaccess pub/.htaccess.merchant"
+        runCommand
+    fi
+    CMD="curl -s -o pub/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/.htaccess"
+    runCommand
+
+    if [ -f pub/static/.htaccess ] && [ ! -f pub/static/.htaccess.merchant ]
     then
         CMD="mv pub/static/.htaccess pub/static/.htaccess.merchant"
         runCommand
@@ -551,7 +550,7 @@ function overwriteOriginalFiles()
     CMD="curl -s -o pub/static/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/static/.htaccess"
     runCommand
 
-    if [ -f pub/media/.htaccess ]
+    if [ -f pub/media/.htaccess ] && [ ! -f pub/media/.htaccess.merchant ]
     then
         CMD="mv pub/media/.htaccess pub/media/.htaccess.merchant"
         runCommand
@@ -769,6 +768,15 @@ function _installSampleData()
     then
         printString "Your version does not support sample data"
         return;
+    fi
+
+    if [ -f "${HOME}/.config/composer/auth.json" ]
+    then
+        if [ -d "var/composer_home" ]
+        then
+            CMD="cp ${HOME}/.config/composer/auth.json var/composer_home/"
+            runCommand
+        fi
     fi
 
     if [ -f "${HOME}/.composer/auth.json" ]
@@ -1042,9 +1050,9 @@ function setProductionMode()
 
 function setFilesystemPermission()
 {
-    CMD="chmod -R a+rwX ./var ./pub/media ./pub/static ./app/etc"
-    runCommand
     CMD="chmod -R a+x ./bin/magento"
+    runCommand
+    CMD="chmod -R a+rwX ./var ./pub/media ./pub/static ./app/etc"
     runCommand
 }
 
@@ -1145,7 +1153,7 @@ done
 
 initQuietMode
 printString Current Directory: "$(pwd)"
-printString "Configuration loaded from: $NEAREST_CONFIG_FILE"
+printString "Configuration loaded from: ${NEAREST_CONFIG_FILE[*]}"
 showWizard
 promptSaveConfig
 
@@ -1153,7 +1161,8 @@ START_TIME=$(date +%s)
 if [[ "${STEPS[@]}" ]]
 then
     prepareSteps
-elif foundSupportBackupFiles; then
+elif foundSupportBackupFiles
+then
     addStep "restore_code"
     addStep "configure_files"
     addStep "restore_db"
@@ -1168,10 +1177,11 @@ elif foundSupportBackupFiles; then
         addStep "compileDi"
     fi
     addStep "deployStaticContent"
+    addStep "tuneAdminSessionLifetime"
 else
     if [[ "${SOURCE}" ]]
     then
-        if askConfirmation "Current directory is not empty. Do you want to clean current Directory (y/N)"
+        if [ "$(ls -A)" ] && askConfirmation "Current directory is not empty. Do you want to clean current Directory (y/N)"
         then
             CMD="ls -A | xargs rm -rf"
             runCommand
@@ -1181,15 +1191,18 @@ else
     addStep "linkEnterpriseEdition"
     addStep "runComposerInstall"
     addStep "installMagento"
-    if [[ "${USE_SAMPLE_DATA}" ]]; then
+    if [[ "${USE_SAMPLE_DATA}" ]]
+    then
         addStep "installSampleData"
     fi
-    if [[ "$MAGE_MODE" == "production" ]]; then
+    if [[ "$MAGE_MODE" == "production" ]]
+    then
         addStep "setProductionMode"
     fi
     addStep "configure_files"
     addStep "setFilesystemPermission"
     addStep "deployStaticContent"
+    addStep "tuneAdminSessionLifetime"
 fi
 
 for step in "${STEPS[@]}"
