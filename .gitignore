@@ -1,5 +1,11 @@
 env/conf/composer/auth.json
-www
 env/data
+www
+!www/index.html
+!www/favicon.ico
 !www/magento1/index.php
+!www/magento1/realpath_cache_tuner.php
+!www/magento1/favicon.ico
 !www/magento2/index.php
+!www/magento2/realpath_cache_tuner.php
+!www/magento2/favicon.ico

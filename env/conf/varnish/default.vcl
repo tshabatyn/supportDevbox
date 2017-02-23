@@ -13,7 +13,7 @@ probe healthcheck {
         "User-Agent: varnish-probe"
         "Accept: */*";
     .timeout = 0.5s;
-    .interval = 1440s;
+    .interval = 180s;
     .window = 5;
     .threshold = 2;
     .expected_response = 200;
@@ -114,7 +114,7 @@ sub vcl_hash {
     if (req.http.X-Forwarded-Proto) {
         hash_data(req.http.X-Forwarded-Proto);
     }
-    
+
 }
 
 sub vcl_backend_response {

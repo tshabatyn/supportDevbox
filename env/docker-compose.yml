@@ -7,11 +7,6 @@ services:
     container_name: support_data_11
     image: alpine
     command: /bin/sh
-    volumes:
-      - ./conf/httpd/index.html:/var/www/index.html:ro
-      - ./conf/httpd/.htaccess:/var/www/.htaccess:ro
-#      - ./php/tools/xhgui:/var/www/xhgui
-#      - ../magento1:/var/www/magento1
 
   php-data:
     container_name: support_php-data_11
@@ -34,27 +29,25 @@ services:
 # Apache
   web:
     container_name: support_web_11
-    restart: always
     image: httpd:2.4
     ports:
-      - "80:80"
       - "443:443"
+      - "80:80"    # Uncomment with Disabled Varnish
+#      - "8080:80"  # Uncomment with Enabled Varnish
+#    expose:         # Uncomment with Enabled Varnish
+#      - 80          # Uncomment with Enabled Varnish
     links:
-#      - php55
-#      - php71
       - php56
       - php70
+    depends_on:
+      - mysql56
     networks:
       default:
         aliases:
           - "magento1.local"
-#          - "php55.magento1.local"
-#          - "php71.magento1.local"
           - "php56.magento1.local"
           - "php70.magento1.local"
           - "magento2.local"
-#          - "php55.magento2.local"
-#          - "php71.magento2.local"
           - "php56.magento2.local"
           - "php70.magento2.local"
     command: bash -c "/usr/local/bin/entrypoint.sh"
@@ -66,44 +59,30 @@ services:
       - ./conf/httpd/conf/extra/httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf:ro
       - ./conf/httpd/conf/extra/httpd-vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
       - ./conf/httpd/ssl:/usr/local/apache2/conf/ssl/:ro
-      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+#      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+#      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
 
 
-# Varnish cache
+## Varnish cache
 #  varnish:
 #    container_name: support_varnish_11
 #    restart: always
-#    depends_on:
+#    image: million12/varnish
+#    links:
 #      - web
-#    image: magento/magento2devbox_varnish:latest
-##    build: ../magento2devbox-varnish
+#    environment:
+#      - 'VCL_CONFIG=/etc/varnish/default.vcl'
+#      - 'CACHE_SIZE=256m'
+#      - 'VARNISHD_PARAMS=-p default_ttl=3600 -p default_grace=3600'
+#    volumes_from:
+#      - web
 #    volumes:
-#      - ./conf/varnish:/etc/varnish/default
+#      - ./conf/varnish/default.vcl:/etc/varnish/default.vcl:ro
 #    ports:
-#      - "80:6081"
+#      - "80:80"
 
 
 # PHP
-#  php55:
-#    container_name: support_php55_11
-#    build:
-#      context: ./php/php55
-#      args:
-#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
-#    links:
-#      - redis
-#      - mysql56:db
-#      - mailcatcher
-#      - mongo # we need it for xhprof
-#    volumes_from:
-#      - php-data
-#    volumes:
-#      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-#      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
-#    ports:
-#      - "2231:22"
-
   php56:
     container_name: support_php56_11
     build:
@@ -114,12 +93,12 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
-      - mongo # we need it for xhprof
+#      - mongo # we need it for xhprof
     volumes_from:
       - php-data
-    volumes:
-      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+#    volumes:
+#      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+#      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
     ports:
       - "2232:22"
 
@@ -133,27 +112,10 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
-      - mongo # we need it for xhprof
     volumes_from:
       - php-data
     ports:
       - "2233:22"
-
-#  php71:
-#    container_name: support_php71_11
-#    build:
-#      context: ./php/php71
-#      args:
-#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
-#    links:
-#      - redis
-#      - mysql56:db
-#      - mailcatcher
-#      - mongo # we need it for xhprof
-#    volumes_from:
-#      - php-data
-#    ports:
-#      - "2234:22"
 
 
 # CACHES
@@ -201,14 +163,14 @@ services:
 #    ports:
 #      - "8983:8983"
 #
-  elasticsearch:
-    container_name: support_elasticsearch_11
-    restart: always
-    image: elasticsearch:2.4
-    ports:
-      - "9200:9200"
-    volumes:
-      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+#  elasticsearch:
+#    container_name: support_elasticsearch_11
+#    restart: always
+#    image: elasticsearch:2.4
+#    ports:
+#      - "9200:9200"
+#    volumes:
+#      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
 
 # Email
@@ -223,9 +185,9 @@ services:
 # OTHERS
 
 # We need Mongo for xhprof
-  mongo:
-    container_name: support_mongo_11
-    image: mongo:3.2
+#  mongo:
+#    container_name: support_mongo_11
+#    image: mongo:3.2
 
 volumes:
   db: {}
