@@ -162,15 +162,15 @@ services:
 #        SOLR_SOURCE_SHA256_HASH: "3a1a40542670ea6efec246a081053732c5503ec1"
 #    ports:
 #      - "8983:8983"
-#
-#  elasticsearch:
-#    container_name: support_elasticsearch_11
-#    restart: always
-#    image: elasticsearch:2.4
-#    ports:
-#      - "9200:9200"
-#    volumes:
-#      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+
+  elasticsearch:
+    container_name: support_elasticsearch_11
+    restart: always
+    image: elasticsearch:2.4
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
 
 # Email
