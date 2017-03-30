@@ -7,6 +7,12 @@ services:
     container_name: support_data_11
     image: alpine
     command: /bin/sh
+    volumes:
+      - ./php/tools/xhgui:/var/www/xhgui:ro
+      - ../www/magento1:/var/www/magento1/:rw
+      - ../www/magento2:/var/www/magento2/:rw
+      - ../www/index.html:/var/www/index.html:rw
+      - ../www/favicon.ico:/var/www/favicon.ico:rw
 
   php-data:
     container_name: support_php-data_11
@@ -18,6 +24,7 @@ services:
       - data
     volumes:
       - db:/var/run/mysqld/
+      - redis:/var/run/redis/
       - ./conf/composer/auth.json:/root/.composer/auth.json:ro
       - ./conf/smtp/msmtprc:/etc/msmtprc:ro
       - ./supportTools/restore/restore.sh:/usr/local/bin/restore.sh:ro
@@ -59,8 +66,8 @@ services:
       - ./conf/httpd/conf/extra/httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf:ro
       - ./conf/httpd/conf/extra/httpd-vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
       - ./conf/httpd/ssl:/usr/local/apache2/conf/ssl/:ro
-#      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-#      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
 
 
 ## Varnish cache
@@ -93,12 +100,12 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
-#      - mongo # we need it for xhprof
+      - mongo # we need it for xhprof
     volumes_from:
       - php-data
-#    volumes:
-#      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-#      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+    volumes:
+      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
+      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
     ports:
       - "2232:22"
 
@@ -123,7 +130,10 @@ services:
     container_name: support_redis_11
     image: redis
     volumes:
+      - redis:/var/run/redis/
       - ./data/redis:/data
+      - ./conf/redis/redis.conf:/etc/redis.conf:ro
+    command: bash -c "redis-server /etc/redis.conf"
 
 
 # DB
@@ -184,10 +194,11 @@ services:
 
 # OTHERS
 
-# We need Mongo for xhprof
-#  mongo:
-#    container_name: support_mongo_11
-#    image: mongo:3.2
+## We need Mongo for xhprof
+  mongo:
+    container_name: support_mongo_11
+    image: mongo:3.2
 
 volumes:
   db: {}
+  redis: {}

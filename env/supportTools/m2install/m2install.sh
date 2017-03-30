@@ -592,8 +592,8 @@ return array(
               'backend' => 'Cm_Cache_Backend_Redis',
               'backend_options' =>
                 array(
-                  'server' => 'redis',
-                  'port' => '6379',
+                  'server' => '/var/run/redis/redis.sock',
+                  'port' => '0',
                   'database' => '0',
                   'compress_data' => '1',
                   'compression_threshold' => '2048',
@@ -605,8 +605,8 @@ return array(
               'backend' => 'Cm_Cache_Backend_Redis',
               'backend_options' =>
                 array(
-                  'server' => 'redis',
-                  'port' => '6379',
+                  'server' => '/var/run/redis/redis.sock',
+                  'port' => '0',
                   'database' => '1',
                   'compress_data' => '0',
                   'compression_threshold' => '2048',
@@ -620,8 +620,8 @@ return array(
       'save' => 'redis',
       'redis' =>
         array(
-          'host' => 'redis',
-          'port' => '6379',
+          'host' => '/var/run/redis/redis.sock',
+          'port' => '0',
           'password' => '',
           'timeout' => '2.5',
           'persistent_identifier' => '',

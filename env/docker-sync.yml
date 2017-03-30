@@ -1,3 +1,5 @@
+version: '2'
+
 options:
   verbose: true
   image: 'eugenmayer/rsync'
@@ -28,7 +30,7 @@ syncs:
 
   xhgui-rsync-sync:
     src: './php/tools/xhgui'
-    dest: '/var/www/xhgui'
+    dest: '/var/www/xhgui/'
     sync_args: '-v --copy-links --hard-links' # delete files on the container if they are deleted on the host
     sync_host_ip: 'localhost'
     sync_host_port: 10872
@@ -42,7 +44,7 @@ syncs:
 
   www-rsync-sync:
     src: '../www'
-    dest: '/var/www'
+    dest: '/var/www/'
     sync_args: '-v --copy-links --hard-links' # delete files on the container if they are deleted on the host
     sync_host_ip: 'localhost'
     sync_host_port: 10873

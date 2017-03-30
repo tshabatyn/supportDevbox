@@ -682,9 +682,9 @@ function getOrigLocalXml()
             <prefix>FPC_</prefix>
             <backend>Mage_Cache_Backend_Redis</backend>
             <backend_options>
-                <server>redis</server>
-                <port>6379</port>
-                <persistent>1</persistent>
+                <server><![CDATA[/var/run/redis/redis.sock]]></server>
+                <port>0</port>
+                <persistent></persistent>
                 <database>1</database>
                 <password></password>
                 <force_standalone>0</force_standalone>
@@ -700,9 +700,9 @@ function getOrigLocalXml()
             <prefix>CACHE_</prefix>
             <backend>Mage_Cache_Backend_Redis</backend>
             <backend_options>
-                <server>redis</server>
-                <port>6379</port>
-                <persistent>1</persistent>
+                <server><![CDATA[/var/run/redis/redis.sock]]></server>
+                <port>0</port>
+                <persistent></persistent>
                 <database>0</database>
                 <password></password>
                 <force_standalone>0</force_standalone>
@@ -716,6 +716,23 @@ function getOrigLocalXml()
                 <compression_lib>lzf</compression_lib>
             </backend_options>
         </cache>
+        <session_save>db</session_save>
+        <redis_session>
+            <host><![CDATA[/var/run/redis/redis.sock]]></host>
+            <port>0</port>
+            <password></password>
+            <timeout>2.5</timeout>
+            <persistent></persistent>
+            <db>2</db>
+            <compression_threshold>2048</compression_threshold>
+            <compression_lib>lzf</compression_lib>
+            <log_level>4</log_level>
+            <max_concurrency>6</max_concurrency>
+            <break_after_frontend>5</break_after_frontend>
+            <break_after_adminhtml>30</break_after_adminhtml>
+            <bot_lifetime>7200</bot_lifetime>
+            <disable_locking>1</disable_locking>
+        </redis_session>
         <resources>
             <db>
                 <table_prefix><![CDATA[]]></table_prefix>
@@ -734,23 +751,6 @@ function getOrigLocalXml()
                 </connection>
             </default_setup>
         </resources>
-        <session_save>db</session_save>
-        <redis_session>
-            <host>redis</host>
-            <port>6379</port>
-            <password></password>
-            <timeout>2.5</timeout>
-            <persistent></persistent>
-            <db>2</db>
-            <compression_threshold>2048</compression_threshold>
-            <compression_lib>lzf</compression_lib>
-            <log_level>4</log_level>
-            <max_concurrency>6</max_concurrency>
-            <break_after_frontend>5</break_after_frontend>
-            <break_after_adminhtml>30</break_after_adminhtml>
-            <bot_lifetime>7200</bot_lifetime>
-            <disable_locking>1</disable_locking>
-        </redis_session>
     </global>
     <admin>
         <routers>
