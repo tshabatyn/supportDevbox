@@ -115,7 +115,7 @@ RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bash_profile \
     && echo " . /etc/bash_completion" >> /root/.bash_profile \
     && echo "fi" >> /root/.bash_profile
 
-RUN usermod -u 1000 root
+#RUN usermod -u 1000 root
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 
