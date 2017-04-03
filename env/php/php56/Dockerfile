@@ -65,7 +65,7 @@ RUN apt-get purge -y libmagickwand-6.q16-dev \
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN curl -o /usr/local/bin/n98-magerun https://files.magerun.net/n98-magerun.phar \
+RUN curl -Lo /usr/local/bin/n98-magerun https://files.magerun.net/n98-magerun.phar \
     && chmod +x /usr/local/bin/n98-magerun
 
 #we need it for xhprof
@@ -119,13 +119,20 @@ RUN echo "opcache.max_accelerated_files=7963" >> $PHP_INI_DIR/conf.d/docker-php-
 RUN ln -s /usr/local/bin/php /usr/bin/php
 
 RUN mkdir -p /etc/bash_completion.d/
-RUN curl -o /etc/bash_completion.d/magento2-bash-completion https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion
-RUN curl -o /etc/bash_completion.d/magento2-bash-completion-enterprise https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion-enterprise
-RUN curl -o /etc/bash_completion.d/n98-magerun2.phar.bash https://raw.githubusercontent.com/netz98/n98-magerun2/master/res/autocompletion/bash/n98-magerun2.phar.bash
+RUN curl -Lo /etc/bash_completion.d/magento2-bash-completion https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion
+RUN curl -Lo /etc/bash_completion.d/magento2-bash-completion-enterprise https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion-enterprise
+RUN curl -Lo /etc/bash_completion.d/n98-magerun2.phar.bash https://raw.githubusercontent.com/netz98/n98-magerun2/master/res/autocompletion/bash/n98-magerun2.phar.bash
 
-RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bash_profile \
-    && echo " . /etc/bash_completion" >> /root/.bash_profile \
-    && echo "fi" >> /root/.bash_profile
+RUN curl -Lo /usr/local/bin/phpcs https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar \
+    && chmod a+x /usr/local/bin/phpcs \
+    ; curl -Lo /usr/local/bin/phpcbf https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar \
+    && chmod a+x /usr/local/bin/phpcbf \
+    ; curl -Lo /usr/local/bin/phpmd http://static.phpmd.org/php/latest/phpmd.phar \
+    && chmod a+x /usr/local/bin/phpmd
+
+RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bashrc \
+    && echo " . /etc/bash_completion" >> /root/.bashrc \
+    && echo "fi" >> /root/.bashrc
 
 #RUN usermod -u 1000 root
 
