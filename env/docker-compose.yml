@@ -31,6 +31,7 @@ services:
       - ./supportTools/restore/restore.conf:/usr/local/bin/.restore.conf:ro
       - ./supportTools/m2install/m2install.sh:/usr/local/bin/m2install.sh:ro
       - ./supportTools/m2install/m2install.conf:/usr/local/bin/.m2install.conf:ro
+      - ./supportTools/xdebug-php.sh:/usr/local/bin/xdebug-php.sh:ro
 
 
 # Apache
