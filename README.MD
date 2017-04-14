@@ -42,3 +42,14 @@ After this profiler will be disabled, for all the further requests.
 ### Xdebug
 
 Please make sure that you didn't miss second step from Installation. Also, there is an issue, you should enable debugger only after containers will up.
+
+```bash
+# enable debugger
+xdebug-php.sh 1
+
+# disable debugger
+xdebug-php.sh 0
+
+# shows php version info, with information about Xdebug if it is enabled
+xdebug-php.sh
+```
