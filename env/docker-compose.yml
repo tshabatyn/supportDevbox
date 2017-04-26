@@ -2,17 +2,24 @@ version: '2'
 
 services:
 
-# Stores all data
-  data:
-    container_name: support_data_11
-    image: alpine
-    command: /bin/sh
+# Source code
+  source-code-container:
+    container_name: support_source-code-container_11
+    build:
+      context: ./container-source-code
+    ports:
+      - "4848:22"
     volumes:
-      - ./php/tools/xhgui:/var/www/xhgui:ro
-      - ../www/magento1:/var/www/magento1/:rw
-      - ../www/magento2:/var/www/magento2/:rw
-      - ../www/index.html:/var/www/index.html:rw
-      - ../www/favicon.ico:/var/www/favicon.ico:rw
+      - src:/var/www
+
+  db-data-container:
+    container_name: support_db-data-container_11
+    build:
+      context: ./container-db-data
+    ports:
+      - "4949:22"
+    volumes:
+      - db-data:/var/lib/mysql
 
   php-data:
     container_name: support_php-data_11
@@ -21,7 +28,7 @@ services:
     links:
       - mysql56
     volumes_from:
-      - data
+      - source-code-container
     volumes:
       - db:/var/run/mysqld/
       - redis:/var/run/redis/
@@ -60,15 +67,13 @@ services:
           - "php70.magento2.local"
     command: bash -c "/usr/local/bin/entrypoint.sh"
     volumes_from:
-      - data:ro
+      - source-code-container:ro
     volumes:
       - ./conf/httpd/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
       - ./conf/httpd/conf/httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
       - ./conf/httpd/conf/extra/httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf:ro
       - ./conf/httpd/conf/extra/httpd-vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
       - ./conf/httpd/ssl:/usr/local/apache2/conf/ssl/:ro
-      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
 
 
 ## Varnish cache
@@ -101,12 +106,9 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
-      - mongo # we need it for xhprof
+#      - mongo # we need it for xhprof
     volumes_from:
       - php-data
-    volumes:
-      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
     ports:
       - "2232:22"
 
@@ -132,7 +134,7 @@ services:
     image: redis
     volumes:
       - redis:/var/run/redis/
-      - ./data/redis:/data
+#      - ./data/redis:/data
       - ./conf/redis/redis.conf:/etc/redis.conf:ro
     command: bash -c "redis-server /etc/redis.conf"
 
@@ -143,9 +145,11 @@ services:
     image: mysql:5.6
     env_file:
       - ./conf/db/mysql.env
+    volumes_from:
+      - db-data-container
     volumes:
       - db:/var/run/mysqld/
-      - ./data/mysql56/data:/var/lib/mysql
+#      - ./data/mysql56/data:/var/lib/mysql
 #      - ./data/mysql56/logs/mysql:/var/log/mysql
       - ./conf/db/.my.cnf:/root/.my.cnf:ro
       - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
@@ -174,14 +178,14 @@ services:
 #    ports:
 #      - "8983:8983"
 
-  elasticsearch:
-    container_name: support_elasticsearch_11
-    restart: always
-    image: elasticsearch:2.4
-    ports:
-      - "9200:9200"
-    volumes:
-      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+#  elasticsearch:
+#    container_name: support_elasticsearch_11
+#    restart: always
+#    image: elasticsearch:2.4
+#    ports:
+#      - "9200:9200"
+#    volumes:
+#      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
 
 # Email
@@ -196,10 +200,20 @@ services:
 # OTHERS
 
 ## We need Mongo for xhprof
-  mongo:
-    container_name: support_mongo_11
-    image: mongo:3.2
+#  mongo:
+#    container_name: support_mongo_11
+#    image: mongo:3.2
 
 volumes:
   db: {}
   redis: {}
+  src: {}
+  db-data: {}
+
+#networks:
+#  vpcb:
+#    driver: bridge
+#    ipam:
+#     config:
+#       - subnet: 192.168.3.0/16
+#         gateway: 192.168.3.1
