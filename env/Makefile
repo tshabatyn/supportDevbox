@@ -20,12 +20,12 @@ all: up elastic mailcatcher solr
 
 mount:
 	chmod 400 $(ROOT_DIR)/container-source-code/ssh/support
-	sshfs -o reconnect -o StrictHostKeyChecking=no -o follow_symlinks -o IdentityFile=$(ROOT_DIR)/container-source-code/ssh/support -o port=4848 root@127.0.0.1:/var/www $(SRC_DIR)
+	sshfs -o reconnect -o StrictHostKeyChecking=no -o follow_symlinks -oauto_cache,defer_permissions,noappledouble,nolocalcaches,no_readahead -o IdentityFile=$(ROOT_DIR)/container-source-code/ssh/support -o port=4848 root@127.0.0.1:/var/www $(SRC_DIR)
 unmount:
 	umount -f $(SRC_DIR)
 mountDB:
 	chmod 400 $(ROOT_DIR)/container-db-data/ssh/support
-	sshfs -o reconnect -o StrictHostKeyChecking=no -o follow_symlinks -o IdentityFile=$(ROOT_DIR)/container-db-data/ssh/support -o port=4949 root@127.0.0.1:/var/lib/mysql $(DB_DIR)
+	sshfs -o reconnect -o StrictHostKeyChecking=no -o follow_symlinks -oauto_cache,defer_permissions,noappledouble,nolocalcaches,no_readahead -o IdentityFile=$(ROOT_DIR)/container-db-data/ssh/support -o port=4949 root@127.0.0.1:/var/lib/mysql $(DB_DIR)
 unmountDB:
 	umount -f $(DB_DIR)
 clean:

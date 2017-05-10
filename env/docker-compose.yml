@@ -11,25 +11,6 @@ services:
       - "4848:22"
     volumes:
       - src:/var/www
-
-  db-data-container:
-    container_name: support_db-data-container_11
-    build:
-      context: ./container-db-data
-    ports:
-      - "4949:22"
-    volumes:
-      - db-data:/var/lib/mysql
-
-  php-data:
-    container_name: support_php-data_11
-    image: alpine
-    command: /bin/sh
-    links:
-      - mysql56
-    volumes_from:
-      - source-code-container
-    volumes:
       - db:/var/run/mysqld/
       - redis:/var/run/redis/
       - ./conf/composer/auth.json:/root/.composer/auth.json:ro
@@ -40,8 +21,16 @@ services:
       - ./supportTools/m2install/m2install.conf:/usr/local/bin/.m2install.conf:ro
       - ./supportTools/xdebug-php.sh:/usr/local/bin/xdebug-php.sh:ro
 
+  db-data-container:
+    container_name: support_db-data-container_11
+    build:
+      context: ./container-db-data
+    ports:
+      - "4949:22"
+    volumes:
+      - db-data:/var/lib/mysql
 
-# Apache
+## Apache
   web:
     container_name: support_web_11
     image: httpd:2.4
@@ -52,6 +41,7 @@ services:
 #    expose:         # Uncomment with Enabled Varnish
 #      - 80          # Uncomment with Enabled Varnish
     links:
+      - php55
       - php56
       - php70
     depends_on:
@@ -95,7 +85,23 @@ services:
 #      - "80:80"
 
 
-# PHP
+## PHP
+  php55:
+    container_name: support_php55_11
+    build:
+      context: ./php/php55
+      args:
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+    links:
+      - redis
+      - mysql56:db
+      - mailcatcher
+#      - mongo # we need it for xhprof
+    volumes_from:
+      - source-code-container
+    ports:
+      - "2231:22"
+
   php56:
     container_name: support_php56_11
     build:
@@ -108,7 +114,7 @@ services:
       - mailcatcher
 #      - mongo # we need it for xhprof
     volumes_from:
-      - php-data
+      - source-code-container
     ports:
       - "2232:22"
 
@@ -123,12 +129,12 @@ services:
       - mysql56:db
       - mailcatcher
     volumes_from:
-      - php-data
+      - source-code-container
     ports:
       - "2233:22"
 
 
-# CACHES
+## CACHES
   redis:
     container_name: support_redis_11
     image: redis
@@ -139,7 +145,7 @@ services:
     command: bash -c "redis-server /etc/redis.conf"
 
 
-# DB
+## DB
   mysql56:
     container_name: support_mysql56_11
     image: mysql:5.6
@@ -154,7 +160,7 @@ services:
       - ./conf/db/.my.cnf:/root/.my.cnf:ro
       - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
 
-# Jobs/ Queues
+## Jobs/ Queues
 #  rabbit:
 #    container_name: support_rabbit_11
 #    restart: always
@@ -166,7 +172,7 @@ services:
 #      - "8282:15672"
 #      - "5672:5672"
 
-# Search engines
+## Search engines
 #  solr:
 #    container_name: support_solr_11
 #    build:
@@ -188,7 +194,7 @@ services:
 #      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
 
-# Email
+## Email
   mailcatcher:
     container_name: support_mailcatcher_11
     image: schickling/mailcatcher
