@@ -23,6 +23,5 @@ env/container-source-code/src
 !env/container-source-code/src/.htaccess
 !env/container-source-code/src/favicon.ico
 !env/container-source-code/src/index.html
-!env/container-source-code/src/magento2/realpath_cache_tuner.php
-!env/container-source-code/src/magento2/favicon.ico
-!env/container-source-code/src/magento2/index.php
+!env/container-source-code/src/magento1
+!env/container-source-code/src/magento2
