@@ -1,6 +1,7 @@
 FROM php:5.5-fpm
 MAINTAINER Taras Shabatyn <tshabatyn@magento.com>
 
+ENV REVISION=1
 ENV TERM=xterm-256color
 ENV COMPOSER_PROCESS_TIMEOUT 2000
 
@@ -24,6 +25,7 @@ RUN apt-get install -y libmagickwand-6.q16-dev \
     libxslt-dev \
     libgringotts-dev \
     libcurl4-openssl-dev \
+    libpcre3-dev \
     --no-install-recommends
 
 ARG php_ext
@@ -41,6 +43,16 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/ImageMagick-6.8.9/bin-Q16/MagickWand-config 
 
 RUN pecl install lzf && docker-php-ext-enable lzf
 
+#RUN echo 'deb http://s3-eu-west-1.amazonaws.com/qafoo-profiler/packages debian main' > /etc/apt/sources.list.d/tideways.list && \
+#    curl -sS 'https://s3-eu-west-1.amazonaws.com/qafoo-profiler/packages/EEB5E8F4.gpg' | apt-key add - && \
+#    apt-get update && \
+#    DEBIAN_FRONTEND=noninteractive apt-get -yq install tideways-php && \
+#    apt-get autoremove --assume-yes && \
+#    apt-get clean && \
+#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+#
+#COPY ./etc/tideways.ini /usr/local/etc/php/conf.d/40-tideways.ini
+
 RUN apt-get purge -y libmagickwand-6.q16-dev \
     libfreetype6-dev \
     libjpeg62-turbo-dev \
@@ -49,11 +61,12 @@ RUN apt-get purge -y libmagickwand-6.q16-dev \
     libicu-dev \
     libxslt-dev \
     libgringotts-dev \
-    libcurl4-openssl-dev
+    libcurl4-openssl-dev \
+    libpcre3-dev
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN curl -o /usr/local/bin/n98-magerun https://files.magerun.net/n98-magerun.phar \
+RUN curl -Lo /usr/local/bin/n98-magerun https://files.magerun.net/n98-magerun.phar \
     && chmod +x /usr/local/bin/n98-magerun
 
 #we need it for xhprof
@@ -82,7 +95,8 @@ RUN echo 'root:root' | chpasswd
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-RUN echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+RUN sed -i'' -e 's/^zend/;zend/g' $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.remote_port=9000" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.remote_connect_back=0" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.idekey=\"PHPSTORM\"" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
@@ -107,11 +121,20 @@ RUN echo "opcache.max_accelerated_files=7963" >> $PHP_INI_DIR/conf.d/docker-php-
 RUN ln -s /usr/local/bin/php /usr/bin/php
 
 RUN mkdir -p /etc/bash_completion.d/
-RUN curl -o /etc/bash_completion.d/magento2-bash-completion https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion
-RUN curl -o /etc/bash_completion.d/magento2-bash-completion-enterprise https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion-enterprise
-RUN echo "if [ -f /etc/bash_completion ]; then" >> /etc/profile
-RUN echo " . /etc/bash_completion" >> /etc/profile
-RUN echo "fi" >> /etc/profile
+RUN curl -Lo /etc/bash_completion.d/magento2-bash-completion https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion
+RUN curl -Lo /etc/bash_completion.d/magento2-bash-completion-enterprise https://raw.githubusercontent.com/yvoronoy/magento2-bash-completion/master/magento2-bash-completion-enterprise
+RUN curl -Lo /etc/bash_completion.d/n98-magerun2.phar.bash https://raw.githubusercontent.com/netz98/n98-magerun2/master/res/autocompletion/bash/n98-magerun2.phar.bash
+
+RUN curl -Lo /usr/local/bin/phpcs https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar \
+    && chmod a+x /usr/local/bin/phpcs \
+    ; curl -Lo /usr/local/bin/phpcbf https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar \
+    && chmod a+x /usr/local/bin/phpcbf \
+    ; curl -Lo /usr/local/bin/phpmd http://static.phpmd.org/php/latest/phpmd.phar \
+    && chmod a+x /usr/local/bin/phpmd
+
+RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bashrc \
+    && echo " . /etc/bash_completion" >> /root/.bashrc \
+    && echo "fi" >> /root/.bashrc
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 

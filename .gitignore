@@ -9,3 +9,6 @@ www
 !www/magento2/index.php
 !www/magento2/realpath_cache_tuner.php
 !www/magento2/favicon.ico
+src
+env/container-source-code/src/xhgui/
+!env/container-source-code/src/xhgui/config/config.php

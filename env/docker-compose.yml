@@ -2,27 +2,15 @@ version: '2'
 
 services:
 
-# Stores all data
-  data:
-    container_name: support_data_11
-    image: alpine
-    command: /bin/sh
+# Source code
+  source-code-container:
+    container_name: support_source-code-container_11
+    build:
+      context: ./container-source-code
+    ports:
+      - "4848:22"
     volumes:
-      - ./php/tools/xhgui:/var/www/xhgui:ro
-      - ../www/magento1:/var/www/magento1/:rw
-      - ../www/magento2:/var/www/magento2/:rw
-      - ../www/index.html:/var/www/index.html:rw
-      - ../www/favicon.ico:/var/www/favicon.ico:rw
-
-  php-data:
-    container_name: support_php-data_11
-    image: alpine
-    command: /bin/sh
-    links:
-      - mysql56
-    volumes_from:
-      - data
-    volumes:
+      - src:/var/www
       - db:/var/run/mysqld/
       - redis:/var/run/redis/
       - ./conf/composer/auth.json:/root/.composer/auth.json:ro
@@ -33,8 +21,16 @@ services:
       - ./supportTools/m2install/m2install.conf:/usr/local/bin/.m2install.conf:ro
       - ./supportTools/xdebug-php.sh:/usr/local/bin/xdebug-php.sh:ro
 
+  db-data-container:
+    container_name: support_db-data-container_11
+    build:
+      context: ./container-db-data
+    ports:
+      - "4949:22"
+    volumes:
+      - db-data:/var/lib/mysql
 
-# Apache
+## Apache
   web:
     container_name: support_web_11
     image: httpd:2.4
@@ -45,6 +41,7 @@ services:
 #    expose:         # Uncomment with Enabled Varnish
 #      - 80          # Uncomment with Enabled Varnish
     links:
+#      - php55
       - php56
       - php70
     depends_on:
@@ -60,15 +57,13 @@ services:
           - "php70.magento2.local"
     command: bash -c "/usr/local/bin/entrypoint.sh"
     volumes_from:
-      - data:ro
+      - source-code-container:ro
     volumes:
       - ./conf/httpd/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
       - ./conf/httpd/conf/httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
       - ./conf/httpd/conf/extra/httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf:ro
       - ./conf/httpd/conf/extra/httpd-vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
       - ./conf/httpd/ssl:/usr/local/apache2/conf/ssl/:ro
-      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
 
 
 ## Varnish cache
@@ -90,7 +85,23 @@ services:
 #      - "80:80"
 
 
-# PHP
+## PHP
+#  php55:
+#    container_name: support_php55_11
+#    build:
+#      context: ./php/php55
+#      args:
+#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+#    links:
+#      - redis
+#      - mysql56:db
+#      - mailcatcher
+##      - mongo # we need it for xhprof
+#    volumes_from:
+#      - source-code-container
+#    ports:
+#      - "2231:22"
+
   php56:
     container_name: support_php56_11
     build:
@@ -101,12 +112,9 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
-      - mongo # we need it for xhprof
+#      - mongo # we need it for xhprof
     volumes_from:
-      - php-data
-    volumes:
-      - ./php/tools/xhgui:/var/www/xhgui # we need it for xhprof
-      - ./conf/xhgui/config.php:/var/www/env/xhgui/config/config.php:ro # we need it for xhprof
+      - source-code-container
     ports:
       - "2232:22"
 
@@ -121,36 +129,38 @@ services:
       - mysql56:db
       - mailcatcher
     volumes_from:
-      - php-data
+      - source-code-container
     ports:
       - "2233:22"
 
 
-# CACHES
+## CACHES
   redis:
     container_name: support_redis_11
     image: redis
     volumes:
       - redis:/var/run/redis/
-      - ./data/redis:/data
+#      - ./data/redis:/data
       - ./conf/redis/redis.conf:/etc/redis.conf:ro
     command: bash -c "redis-server /etc/redis.conf"
 
 
-# DB
+## DB
   mysql56:
     container_name: support_mysql56_11
     image: mysql:5.6
     env_file:
       - ./conf/db/mysql.env
+    volumes_from:
+      - db-data-container
     volumes:
       - db:/var/run/mysqld/
-      - ./data/mysql56/data:/var/lib/mysql
+#      - ./data/mysql56/data:/var/lib/mysql
 #      - ./data/mysql56/logs/mysql:/var/log/mysql
       - ./conf/db/.my.cnf:/root/.my.cnf:ro
       - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
 
-# Jobs/ Queues
+## Jobs/ Queues
 #  rabbit:
 #    container_name: support_rabbit_11
 #    restart: always
@@ -162,7 +172,7 @@ services:
 #      - "8282:15672"
 #      - "5672:5672"
 
-# Search engines
+## Search engines
 #  solr:
 #    container_name: support_solr_11
 #    build:
@@ -184,7 +194,7 @@ services:
       - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
 
-# Email
+## Email
   mailcatcher:
     container_name: support_mailcatcher_11
     image: schickling/mailcatcher
@@ -196,10 +206,20 @@ services:
 # OTHERS
 
 ## We need Mongo for xhprof
-  mongo:
-    container_name: support_mongo_11
-    image: mongo:3.2
+#  mongo:
+#    container_name: support_mongo_11
+#    image: mongo:3.2
 
 volumes:
   db: {}
   redis: {}
+  src: {}
+  db-data: {}
+
+#networks:
+#  vpcb:
+#    driver: bridge
+#    ipam:
+#     config:
+#       - subnet: 192.168.3.0/16
+#         gateway: 192.168.3.1
