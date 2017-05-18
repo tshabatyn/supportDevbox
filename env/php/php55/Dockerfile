@@ -1,6 +1,7 @@
 FROM php:5.5-fpm
 MAINTAINER Taras Shabatyn <tshabatyn@magento.com>
 
+ENV REVISION=1
 ENV TERM=xterm-256color
 ENV COMPOSER_PROCESS_TIMEOUT 2000
 
@@ -94,7 +95,7 @@ RUN echo 'root:root' | chpasswd
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-RUN sed -i'' -e 's/^;zend/zend/g' $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
+RUN sed -i'' -e 's/^zend/;zend/g' $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.remote_enable=1" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.remote_port=9000" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.remote_connect_back=0" >> $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini \
@@ -134,8 +135,6 @@ RUN curl -Lo /usr/local/bin/phpcs https://squizlabs.github.io/PHP_CodeSniffer/ph
 RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bashrc \
     && echo " . /etc/bash_completion" >> /root/.bashrc \
     && echo "fi" >> /root/.bashrc
-
-#RUN usermod -u 1000 root
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 

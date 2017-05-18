@@ -41,7 +41,7 @@ services:
 #    expose:         # Uncomment with Enabled Varnish
 #      - 80          # Uncomment with Enabled Varnish
     links:
-      - php55
+#      - php55
       - php56
       - php70
     depends_on:
@@ -86,21 +86,21 @@ services:
 
 
 ## PHP
-  php55:
-    container_name: support_php55_11
-    build:
-      context: ./php/php55
-      args:
-        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
-    links:
-      - redis
-      - mysql56:db
-      - mailcatcher
-#      - mongo # we need it for xhprof
-    volumes_from:
-      - source-code-container
-    ports:
-      - "2231:22"
+#  php55:
+#    container_name: support_php55_11
+#    build:
+#      context: ./php/php55
+#      args:
+#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+#    links:
+#      - redis
+#      - mysql56:db
+#      - mailcatcher
+##      - mongo # we need it for xhprof
+#    volumes_from:
+#      - source-code-container
+#    ports:
+#      - "2231:22"
 
   php56:
     container_name: support_php56_11
@@ -184,14 +184,14 @@ services:
 #    ports:
 #      - "8983:8983"
 
-#  elasticsearch:
-#    container_name: support_elasticsearch_11
-#    restart: always
-#    image: elasticsearch:2.4
-#    ports:
-#      - "9200:9200"
-#    volumes:
-#      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+  elasticsearch:
+    container_name: support_elasticsearch_11
+    restart: always
+    image: elasticsearch:2.4
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
 
 ## Email

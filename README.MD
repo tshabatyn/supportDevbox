@@ -6,16 +6,14 @@
 #### 2. Add IP alias, on your host machine, for enable Xdebug
    * `sudo ifconfig lo0 alias 10.254.254.254 netmask 255.255.255.0`
 
-#### 3. Install docker-sync
-   * `sudo gem install docker-sync`
-   * `brew install fswatch`
-   * `brew install unison`
+#### 3. Run docker's containers
+   * `docker-compose up`
 
-#### 4. Tune your host maxfilesperproc
-   * `sudo sysctl -w kern.maxfilesperproc=100000`
+#### 4. Mount source code directory to your host machine
+   * `cd env && make mount ; cd -`
 
-#### 5. Run docker's containers
-   * `docker-sync-stack start`
+#### 5. Unmount source code directory to your host machine
+   * `cd env && make unmount ; cd -`
 
 #### 6. Add virtual hosts to your hosts file
 `0.0.0.0	magento1.local	php55.magento1.local	php56.magento1.local	php70.magento1.local	php71.magento1.local`
@@ -41,7 +39,8 @@ After this profiler will be disabled, for all the further requests.
 
 ### Xdebug
 
-Please make sure that you didn't miss second step from Installation. Also, there is an issue, you should enable debugger only after containers will up.
+Please make sure that you didn't miss second step from Installation. Also, there is an issue, you should enable debugger
+ only after containers will up.
 
 ```bash
 # enable debugger
@@ -53,3 +52,13 @@ xdebug-php.sh 0
 # shows php version info, with information about Xdebug if it is enabled
 xdebug-php.sh
 ```
+
+### FAQ
+
+#### How to increase docker container's storage size?
+
+```bash
+sudo dockerd --storage-opt dm.basesize=150G
+```
+Please, note! It will restart your docker!
+After the restart, you will not lose any data, which was there in the containers.
