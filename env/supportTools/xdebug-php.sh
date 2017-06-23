@@ -30,11 +30,7 @@ xdebugAction()
         || { echo "> ERROR: failed to update ${ini} file ..." 1>&2 && return 1; }
   fi
 
-  local web_php_fpm_pid=`/bin/ps aux | grep "php-fpm: master process" | grep -v "grep" | awk '{print $2}'`
-
-  kill -USR2 1
-  kill -USR2 $web_php_fpm_pid
-  php -v
+  reloadPhpFpmIni.sh
 }
 
 

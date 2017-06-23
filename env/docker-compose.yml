@@ -19,7 +19,9 @@ services:
       - ./supportTools/restore/restore.conf:/usr/local/bin/.restore.conf:ro
       - ./supportTools/m2install/m2install.sh:/usr/local/bin/m2install.sh:ro
       - ./supportTools/m2install/m2install.conf:/usr/local/bin/.m2install.conf:ro
+      - ./supportTools/reloadPhpFpmIni.sh:/usr/local/bin/reloadPhpFpmIni.sh:ro
       - ./supportTools/xdebug-php.sh:/usr/local/bin/xdebug-php.sh:ro
+      - ./supportTools/tideways-php.sh:/usr/local/bin/tideways-php.sh:ro
 
   db-data-container:
     container_name: support_db-data-container_11
@@ -29,6 +31,31 @@ services:
       - "4949:22"
     volumes:
       - db-data:/var/lib/mysql
+
+  nfs-container:
+    container_name: support_nfs-container_11
+    build:
+      context: ./container-nfs
+    ports:
+      - "111:111"
+      - "111:111/udp"
+      - "2049:2049"
+      - "2049:2049/udp"
+      - "32765:32765"
+      - "32765:32765/udp"
+      - "32766:32766"
+      - "32766:32766/udp"
+      - "32767:32767"
+      - "32767:32767/udp"
+      - "34567:34567"
+      - "34567:34567/udp"
+      - "34568:34568"
+      - "34568:34568/udp"
+    volumes:
+      - nfs-data:/var/nfs
+    networks:
+      vpcb:
+        ipv4_address: 192.168.3.10
 
 ## Apache
   web:
@@ -112,7 +139,7 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
-#      - mongo # we need it for xhprof
+      - mongo # we need it for xhprof
     volumes_from:
       - source-code-container
     ports:
@@ -128,6 +155,7 @@ services:
       - redis
       - mysql56:db
       - mailcatcher
+      - mongo # we need it for xhprof
     volumes_from:
       - source-code-container
     ports:
@@ -206,20 +234,21 @@ services:
 # OTHERS
 
 ## We need Mongo for xhprof
-#  mongo:
-#    container_name: support_mongo_11
-#    image: mongo:3.2
+  mongo:
+    container_name: support_mongo_11
+    image: mongo:3.2
 
 volumes:
   db: {}
   redis: {}
   src: {}
   db-data: {}
+  nfs-data: {}
 
-#networks:
-#  vpcb:
-#    driver: bridge
-#    ipam:
-#     config:
-#       - subnet: 192.168.3.0/16
-#         gateway: 192.168.3.1
+networks:
+  vpcb:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.3.0/16
+          gateway: 192.168.3.1
