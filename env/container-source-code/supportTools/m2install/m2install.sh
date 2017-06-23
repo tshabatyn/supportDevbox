@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Magento 2 Bash Install Script
 #
@@ -423,12 +423,6 @@ function createNewDB()
 function tuneAdminSessionLifetime()
 {
     SQLQUERY="INSERT INTO ${DB_NAME}.${TBL_PREFIX}core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'admin/security/session_lifetime', '31536000') ON DUPLICATE KEY UPDATE value='31536000';";
-    mysqlQuery
-}
-
-function disableNewRelic()
-{
-    SQLQUERY="INSERT INTO ${DB_NAME}.${TBL_PREFIX}core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'newrelicreporting/general/enable', '0') ON DUPLICATE KEY UPDATE value='0';";
     mysqlQuery
 }
 
@@ -1186,7 +1180,6 @@ then
     fi
     addStep "deployStaticContent"
     addStep "tuneAdminSessionLifetime"
-    addStep "disableNewRelic"
 else
     if [[ "${SOURCE}" ]]
     then
@@ -1212,7 +1205,6 @@ else
     addStep "setFilesystemPermission"
     addStep "deployStaticContent"
     addStep "tuneAdminSessionLifetime"
-    addStep "disableNewRelic"
 fi
 
 for step in "${STEPS[@]}"

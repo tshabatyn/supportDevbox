@@ -3,19 +3,14 @@
 #### 1. Copy your composer auth file to the `env/.composer/` dir
    * `mkdir -p env/conf/composer/ && cp ~/.composer/auth.json env/conf/composer/auth.json`
 
-#### 2. Add IP alias, on your host machine, for enable Xdebug
-   * `sudo ifconfig lo0 alias 10.254.254.254 netmask 255.255.255.0`
+#### 2. Run docker's containers
+   * `docker-compose up`
 
-#### 3. Install docker-sync
-   * `sudo gem install docker-sync`
-   * `brew install fswatch`
-   * `brew install unison`
+#### 3. Mount source code directory to your host machine
+   * `cd env && make mount ; cd -`
 
-#### 4. Tune your host maxfilesperproc
-   * `sudo sysctl -w kern.maxfilesperproc=100000`
-
-#### 5. Run docker's containers
-   * `docker-sync-stack start`
+#### 4. Unmount source code directory to your host machine
+   * `cd env && make unmount ; cd -`
 
 #### 6. Add virtual hosts to your hosts file
 `0.0.0.0	magento1.local	php55.magento1.local	php56.magento1.local	php70.magento1.local	php71.magento1.local`
@@ -26,30 +21,49 @@
 
 # Available tools
 
-### xhprof + xhgui for profiling PHP code
-To enable profiler you have to add GET parameter `profile=1`. You have to do it once.
-After first request it will create cookie, all the further requests will be profiled.
+### tideways + xhgui for profiling PHP code
+To enable profiler you have to trigger `php-profiler.sh 1` inside the php container(php56, php70).
 
-For accessing xhgui add the following line to your hosts:
+For disabling profiler, please trigger `php-profiler.sh 0` inside the php container(php56, php70).
 
-`127.0.0.1 xhgui.local`
+For accessing xhgui, don't forget to add the following line to your hosts file:
+
+`0.0.0.0	xhgui.local`
 
 After this you can see all the profiles by the [link](http://xhgui.local/).
 
-To disable profiler you have to add GET parameter `profile=0`. It will unset cookie.
-After this profiler will be disabled, for all the further requests.
-
 ### Xdebug
 
-Please make sure that you didn't miss second step from Installation. Also, there is an issue, you should enable debugger only after containers will up.
+##### Pre-requirements
+xDebug configuration is using remote host ip = 10.254.254.254.
+
+if you are using Mac OSX you have to create ip 10.254.254.254 as an alias on your loopback device 127.0.0.1
+by using next command:
+```
+sudo curl -o /Library/LaunchDaemons/osx.docker.loopback.plist \
+https://raw.githubusercontent.com/tshabatyn/supportDevbox/master/env/php/osx.docker.loopback.plist \
+&& sudo launchctl load /Library/LaunchDaemons/osx.docker.loopback.plist
+```
+More details you can find here: https://gist.github.com/ralphschindler/535dc5916ccbd06f53c1b0ee5a868c93
+
+Also you can create loop back alias by using next command: `sudo ifconfig lo0 alias 10.254.254.254 netmask 255.255.255.0` 
+
+By defaults deebugger disabled.
+For enabling debbugger, please, execute the following command inside the php container(php56, php70).
 
 ```bash
 # enable debugger
-xdebug-php.sh 1
+php-debugger.sh 1
 
 # disable debugger
-xdebug-php.sh 0
+php-debugger.sh 0
 
-# shows php version info, with information about Xdebug if it is enabled
-xdebug-php.sh
+# the following command will also disable the debugger
+php-debugger.sh
 ```
+
+### FAQ
+
+#### How to increase docker container's storage size?
+
+You can find my foundings by the [link](https://gist.github.com/tshabatyn/8fda3b236b92dc38fb1191eaaf9f8930).
