@@ -63,3 +63,6 @@ innodb_file_per_table                = 1
 innodb_flush_method                  = O_DIRECT
 
 sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
+
+## Settings for Cloud
+auto_increment_increment=3

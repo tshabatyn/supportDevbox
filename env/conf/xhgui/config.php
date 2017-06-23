@@ -31,29 +31,7 @@ return array(
     // Profile 1 in 100 requests.
     // You can return true to profile every request.
     'profiler.enable' => function() {
-        if (isset($_GET['profile'])) {
-            if ($_GET['profile'] != 0) {
-                $lifetime = time() + 512640;
-                setcookie('profile', 1, $lifetime, "/", $_SERVER['HTTP_HOST'], false, false);
-                $_COOKIE['profile'] = 1;
-            } else {
-                setcookie('profile', 0, time() + 1, "/", $_SERVER['HTTP_HOST'], false, false);
-                unset($_COOKIE['profile']);
-            }
-        }
-
-        if (
-            (isset($_COOKIE['profile']) && $_COOKIE['profile'] === '1')
-            || (
-                isset($_SERVER['argc'])
-                && $_SERVER['argc'] > 1
-                && in_array('profile', $_SERVER['argv'])
-                && in_array('profile=1', $_SERVER['argv'])
-            )
-        ) {
-            return true;
-        }
-        return false;
+        return true;
     },
 
     'profiler.simple_url' => function($url) {

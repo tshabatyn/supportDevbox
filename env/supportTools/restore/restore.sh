@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Magento restore script
 #
 # You can use config file
@@ -336,9 +336,9 @@ function updateLocalXml()
     LOCALXML_VALUE=${DBNAME}
     _updateLocalXmlParam
 
-    LOCALXML_PARAM_NAME=host
-    LOCALXML_VALUE=${DBHOST}
-    _updateLocalXmlParam
+#    LOCALXML_PARAM_NAME=host
+#    LOCALXML_VALUE=${DBHOST}
+#    _updateLocalXmlParam
 
     LOCALXML_PARAM_NAME=frontName
     LOCALXML_VALUE="admin"
@@ -739,7 +739,7 @@ function getOrigLocalXml()
             </db>
             <default_setup>
                 <connection>
-                    <host><![CDATA[localhost]]></host>
+                    <host><![CDATA[/var/run/mysqld/mysqld.sock]]></host>
                     <username><![CDATA[root]]></username>
                     <password><![CDATA[]]></password>
                     <dbname><![CDATA[magento]]></dbname>
