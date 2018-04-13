@@ -15,29 +15,36 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# @copyright Copyright (c) 2015 by Yaroslav Voronoy (y.voronoy@gmail.com)
+# @copyright Copyright (c) 2015-2017 by Yaroslav Voronoy (y.voronoy@gmail.com)
 # @license   http://www.gnu.org/licenses/
 
 VERBOSE=1
 CURRENT_DIR_NAME=$(basename "$(pwd)")
-STEPS=()
+STEPS=
 
 HTTP_HOST=http://mage2.dev/
 BASE_PATH=${CURRENT_DIR_NAME}
-DB_HOST=localhost
+DB_HOST=127.0.0.1
+DB_HOST_SH=localhost
 DB_USER=root
 DB_PASSWORD=
 
-MAGENTO_VERSION=2.1
+MAGENTO_VERSION=2.2
 
 DB_NAME=
 USE_SAMPLE_DATA=
-MAGENTO_EE_PATH=
+EE_PATH=magento2ee
+INSTALL_EE=
+INSTALL_B2B=
 CONFIG_NAME=.m2install.conf
 USE_WIZARD=1
 
-GIT_CE_REPO=
+GIT_CE_REPO="git@github.com:magento/magento2.git"
+GIT_CE_SD_REPO="git@github.com:magento/magento2-sample-data.git"
 GIT_EE_REPO=
+GIT_EE_SD_REPO=
+GIT_CE_SD_PATH=magento2-sample-data
+GIT_EE_SD_PATH=magento2-sample-data-ee
 
 SOURCE=
 FORCE=
@@ -48,16 +55,61 @@ BIN_COMPOSER="composer"
 BIN_MYSQL="mysql"
 BIN_GIT="git"
 
+BACKEND_FRONTNAME="admin"
+ADMIN_NAME="admin"
+ADMIN_PASSWORD="123123q"
+ADMIN_FIRSTNAME="Admin"
+ADMIN_LASTNAME="Test"
+ADMIN_EMAIL="admin@test.com"
+TIMEZONE="America/Chicago"
+LANGUAGE="en_US"
+CURRENCY="USD"
 
 function printVersion()
 {
     printString "1.0.2"
 }
 
+function getScriptDirectory()
+{
+    echo "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )";
+    return 0;
+}
+
+function checkDependencies()
+{
+    DEPENDENCIES=(
+      php
+      composer
+      mysql
+      mysqladmin
+      git
+      cat
+      basename
+      tar
+      gunzip
+      sed
+      grep
+      mkdir
+      cp
+      mv
+      rm
+      find
+      chmod
+      date
+    )
+
+    for util in "${DEPENDENCIES[@]}"
+    do
+        hash "${util}" &>/dev/null || printError "'${util}' is not found on this system" || exit 1
+    done;
+
+}
+
 function askValue()
 {
-    MESSAGE=$1
-    READ_DEFAULT_VALUE=$2
+    MESSAGE="$1"
+    READ_DEFAULT_VALUE="$2"
     READVALUE=
     if [ "${READ_DEFAULT_VALUE}" ]
     then
@@ -103,21 +155,44 @@ function printString()
 
 function printError()
 {
-    >&2 echo "$@";
+    >&2 echo "ERROR: $@";
+    return 1;
 }
 
 function printLine()
 {
     if [[ "$VERBOSE" -eq 1 ]]
     then
-        printf '%50s\n' ' ' | tr ' ' -
+        echo "--------------------------------------------------"
     fi
+}
+
+function setRequest()
+{
+    local _key=$1
+    local _value=$2
+
+    local expression="REQUEST_${_key}=${_value}"
+    eval "${expression}";
+}
+
+function getRequest()
+{
+    local _key=$1
+    local _variableName="REQUEST_${_key}";
+    if [[ "${!_variableName:-}" ]]
+    then
+        echo "${!_variableName}"
+        return 0;
+    fi
+    echo "";
+    return 1;
 }
 
 function runCommand()
 {
-    local _prefixMessage=$1;
-    local _suffixMessage=$2
+    local _prefixMessage=${1:-};
+    local _suffixMessage=${2:-}
     if [[ "$VERBOSE" -eq 1 ]]
     then
         echo "${_prefixMessage}${CMD}${_suffixMessage}"
@@ -131,13 +206,12 @@ function extract()
 {
      if [ -f "$EXTRACT_FILENAME" ] ; then
          case $EXTRACT_FILENAME in
-             *.tar.bz2)   CMD="tar xjf $EXTRACT_FILENAME";;
-             *.tar.gz)    CMD="gunzip -c $EXTRACT_FILENAME | gunzip -cf | tar -x" ;;
-             *.tgz)       CMD="gunzip -c $EXTRACT_FILENAME | gunzip -cf | tar -x" ;;
-             *.gz)        CMD="gunzip $EXTRACT_FILENAME" ;;
-             *.tbz2)      CMD="tar xjf $EXTRACT_FILENAME" ;;
-             *.zip)       CMD="unzip -qu -x $EXTRACT_FILENAME" ;;
-             *)           printError "'$EXTRACT_FILENAME' cannot be extracted"; CMD='' ;;
+             *.tar.*|*.t*z*)
+                CMD="tar $(getStripComponentsValue ${EXTRACT_FILENAME}) -xf ${EXTRACT_FILENAME}"
+             ;;
+             *.gz)              CMD="gunzip $EXTRACT_FILENAME" ;;
+             *.zip)             CMD="unzip -qu -x $EXTRACT_FILENAME" ;;
+             *)                 printError "'$EXTRACT_FILENAME' cannot be extracted"; exit 1; CMD='' ;;
          esac
         runCommand
      else
@@ -145,21 +219,40 @@ function extract()
      fi
 }
 
+function getStripComponentsValue()
+{
+    local stripComponents=
+    local slashCount=
+    slashCount=$(tar -tf "$1" | grep -v vendor | fgrep pub/index.php | sed 's/pub[/]index[.]php//' | sort | head -1 | tr -cd '/' | wc -m | tr -d ' ')
+
+    if [[ "$slashCount" -gt 0 ]]
+    then
+        stripComponents="--strip-components=$slashCount"
+    fi
+
+    echo "$stripComponents";
+}
+
 function mysqlQuery()
 {
-    CMD="${BIN_MYSQL} -u${DB_USER} --password=${DB_PASSWORD} --execute=\"${SQLQUERY}\"";
+    CMD="${BIN_MYSQL} -h${DB_HOST_SH} -u${DB_USER} --password=\"${DB_PASSWORD}\" --execute=\"${SQLQUERY}\"";
     runCommand
 }
 
 function generateDBName()
 {
-    prepareBasePath
-    if [ "$BASE_PATH" ]
+    if [ -z "$DB_NAME" ]
     then
-        DB_NAME=magento2_$(echo "$BASE_PATH" | sed "s/\//_/g" | sed "s/[^a-zA-Z0-9_]//g" | tr '[:upper:]' '[:lower:]');
-    else
-        DB_NAME=magento2_$(echo "$CURRENT_DIR_NAME" | sed "s/\//_/g" | sed "s/[^a-zA-Z0-9_]//g" | tr '[:upper:]' '[:lower:]');
+        prepareBasePath
+        if [ "$BASE_PATH" ]
+        then
+            DB_NAME=m2_${BASE_PATH}
+        else
+            DB_NAME=m2_${CURRENT_DIR_NAME}
+        fi
     fi
+
+    DB_NAME=$(sed -e "s/\//_/g; s/[^a-zA-Z0-9_]//g" <(php -r "print strtolower('$DB_NAME');"));
 }
 
 function prepareBasePath()
@@ -191,46 +284,66 @@ function initQuietMode()
 
 function getCodeDumpFilename()
 {
-    FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*.tbz2' -o -name '*.tar.bz2' | head -n1)
-    if [ "${FILENAME_CODE_DUMP}" == "" ]
+    local codeDumpFilename="";
+    if [[ -f "$(getRequest codedump)" ]]
     then
-        FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*.tar.gz' | grep -v 'logs.tar.gz' | head -n1)
+        codeDumpFilename="$(getRequest codedump)";
+        echo "$codeDumpFilename";
+        return 0;
     fi
-    if [ ! "$FILENAME_CODE_DUMP" ]
+    codeDumpFilename=$(find . -maxdepth 1 -name '*.tbz2' -o -name '*.tar.bz2' | head -n1)
+    if [ "${codeDumpFilename}" == "" ]
     then
-        FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*.tgz' | head -n1)
+        codeDumpFilename=$(find . -maxdepth 1 -name '*.tar.gz' | grep -v 'logs.tar.gz' | head -n1)
     fi
-    if [ ! "$FILENAME_CODE_DUMP" ]
+    if [ ! "$codeDumpFilename" ]
     then
-        FILENAME_CODE_DUMP=$(find . -maxdepth 1 -name '*.zip' | head -n1)
+        codeDumpFilename=$(find . -maxdepth 1 -name '*.tgz' | head -n1)
     fi
+    if [ ! "$codeDumpFilename" ]
+    then
+        codeDumpFilename=$(find . -maxdepth 1 -name '*.zip' | head -n1)
+    fi
+
+    echo "$codeDumpFilename";
+    return 0;
 }
 
 function getDbDumpFilename()
 {
-    FILENAME_DB_DUMP=$(find . -maxdepth 1 -name '*.sql.gz' | head -n1)
-    if [ ! "$FILENAME_DB_DUMP" ]
+    local dbDumpFilename="";
+    if [[ -f "$(getRequest dbdump)" ]]
     then
-        FILENAME_DB_DUMP=$(find . -maxdepth 1 -name '*_db.gz' | head -n1)
+        dbDumpFilename="$(getRequest dbdump)";
+        echo "$dbDumpFilename";
+        return 0;
     fi
+    dbdumpFilename=$(find . -maxdepth 1 -name '*.sql.gz' | head -n1)
+    if [ ! "$dbdumpFilename" ]
+    then
+        dbdumpFilename=$(find . -maxdepth 1 -name '*_db.gz' | head -n1)
+    fi
+    if [ ! "$dbdumpFilename" ]
+    then
+        dbdumpFilename=$(find . -maxdepth 1 -name '*.sql' | head -n1)
+    fi
+    echo "$dbdumpFilename";
+    return 0;
 }
 
 function foundSupportBackupFiles()
 {
-    if [[ ! "$FILENAME_CODE_DUMP" ]]
-    then
-        getCodeDumpFilename
-    fi
-    if [ ! -f "$FILENAME_CODE_DUMP" ]
+    if [ -z getCodeDumpFilename ]
     then
         return 1;
     fi
 
-    if [[ ! "$FILENAME_DB_DUMP" ]]
+    if [ -z getDbDumpFilename ]
     then
-        getDbDumpFilename
+        return 1;
     fi
-    if [ ! -f "$FILENAME_DB_DUMP" ]
+
+    if [ ! -f "$(getCodeDumpFilename)" ] || [ ! -f "$(getDbDumpFilename)" ]
     then
         return 1;
     fi
@@ -246,6 +359,7 @@ function wizard()
     BASE_PATH=${READVALUE}
     askValue "Enter DB Host" "${DB_HOST}"
     DB_HOST=${READVALUE}
+    DB_HOST_SH="${DB_HOST}"
     askValue "Enter DB User" "${DB_USER}"
     DB_USER=${READVALUE}
     askValue "Enter DB Password" "${DB_PASSWORD}"
@@ -272,10 +386,7 @@ function noSourceWizard()
     fi
     if [[ ! "$SOURCE" ]] && askConfirmation "Do you want install Enterprise Edition (y/N)"
     then
-        askValue "Enter path to the directory with Enterprise Edition it will be linked" "${MAGENTO_EE_PATH}"
-        MAGENTO_EE_PATH=${READVALUE}
-    else
-        MAGENTO_EE_PATH=
+        INSTALL_EE=1
     fi
 }
 
@@ -285,8 +396,20 @@ function printConfirmation()
     printGitConfirmation
     prepareBaseURL
     printString "BASE URL: ${BASE_URL}"
-    printString "DB PARAM: ${DB_USER}@${DB_HOST}"
+    printString "BASE PATH: ${BASE_PATH}"
+    printString "DB PARAM: ${DB_USER}@${DB_HOST_SH}"
     printString "DB NAME: ${DB_NAME}"
+    printString "DB PASSWORD: ${DB_PASSWORD}"
+    printString "MAGE MODE: ${MAGE_MODE}"
+    printString "BACKEND FRONTNAME: ${BACKEND_FRONTNAME}"
+    printString "ADMIN NAME: ${ADMIN_NAME}"
+    printString "ADMIN PASSWORD: ${ADMIN_PASSWORD}"
+    printString "ADMIN FIRSTNAME: ${ADMIN_FIRSTNAME}"
+    printString "ADMIN LASTNAME: ${ADMIN_LASTNAME}"
+    printString "ADMIN EMAIL: ${ADMIN_EMAIL}"
+    printString "TIMEZONE: ${TIMEZONE}"
+    printString "LANGUAGE: ${LANGUAGE}"
+    printString "CURRENCY: ${CURRENCY}"
     if foundSupportBackupFiles
     then
         return;
@@ -297,11 +420,17 @@ function printConfirmation()
     else
         printString "Sample Data will NOT be installed."
     fi
-    if [ "${MAGENTO_EE_PATH}" ]
+    if [ "${INSTALL_EE}" ]
     then
         printString "Magento EE will be installed"
     else
         printString "Magento EE will NOT be installed."
+    fi
+    if [ "${INSTALL_B2B}" ]
+    then
+        printString "Magento B2B will be installed"
+    else
+        printString "Magento B2B will NOT be installed."
     fi
 }
 
@@ -328,21 +457,31 @@ function showWizard()
     done
 }
 
+function getConfigFiles()
+{
+    local configPaths[0]="$HOME/$CONFIG_NAME"
+    configPaths[1]="$HOME/${CONFIG_NAME}.override"
+    configPaths[2]="/usr/local/bin/${CONFIG_NAME}"
+    local recursiveconfigs=$( (find "$(pwd)" -maxdepth 1 -name "${CONFIG_NAME}" ;\
+        x=$(pwd);\
+        while [ "$x" != "/" ] ;\
+        do x=$(dirname "$x");\
+            find "$x" -maxdepth 1 -name "${CONFIG_NAME}";\
+        done) | sed '1!G;h;$!d')
+    configPaths=("${configPaths[@]}" "${recursiveconfigs[@]}" "./$(basename ${CONFIG_NAME})");
+    echo "${configPaths[@]}"
+    return 0;
+}
+
 function loadConfigFile()
 {
     local filePath=
-    local configPaths[0]="$HOME/$CONFIG_NAME"
-    configPaths[1]="$HOME/${CONFIG_NAME}.override"
-    configPaths[2]="./$(basename $CONFIG_NAME)"
-    configPaths[3]="/usr/local/bin/$(basename $CONFIG_NAME)"
-    NEAREST_CONFIG_FILE=()
-
-    for filePath in ${configPaths[@]}
+    local configPaths=("$@");
+    for filePath in "${configPaths[@]}"
     do
         if [ -f "${filePath}" ]
         then
-            NEAREST_CONFIG_FILE+=($filePath)
-            source $filePath
+            source "$filePath"
             USE_WIZARD=0
         fi
     done
@@ -367,21 +506,34 @@ function promptSaveConfig()
         _local=${_local}\$CURRENT_DIR_NAME
     fi
 
-    if [ "$NEAREST_CONFIG_FILE" ]
-    then
-        _configContent=$(cat << EOF
+    _configContent=$(cat << EOF
 HTTP_HOST=$HTTP_HOST
 BASE_PATH=$_local
 DB_HOST=$DB_HOST
+DB_NAME=$DB_NAME
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
 MAGENTO_VERSION=$MAGENTO_VERSION
-MAGENTO_EE_PATH=$MAGENTO_EE_PATH
+INSTALL_EE=$INSTALL_EE
+INSTALL_B2B=$INSTALL_B2B
 GIT_CE_REPO=$GIT_CE_REPO
 GIT_EE_REPO=$GIT_EE_REPO
+MAGE_MODE=$MAGE_MODE
+BACKEND_FRONTNAME=$BACKEND_FRONTNAME
+ADMIN_NAME=$ADMIN_NAME
+ADMIN_PASSWORD=$ADMIN_PASSWORD
+ADMIN_FIRSTNAME=$ADMIN_FIRSTNAME
+ADMIN_LASTNAME=$ADMIN_LASTNAME
+ADMIN_EMAIL=$ADMIN_EMAIL
+TIMEZONE=$TIMEZONE
+LANGUAGE=$LANGUAGE
+CURRENCY=$CURRENCY
 EOF
 )
-        _currentConfigContent=$(cat "$NEAREST_CONFIG_FILE")
+
+    if [ "$(getConfigFiles)" ]
+    then
+        _currentConfigContent=$(cat "$HOME/$CONFIG_NAME")
 
         if [ "$_configContent" == "$_currentConfigContent" ]
         then
@@ -390,22 +542,20 @@ EOF
 
     fi
 
-    if askConfirmation "Do you want save/override config to $HOME/$CONFIG_NAME (y/N)"
+    configSavePath="$HOME/$CONFIG_NAME"
+    if [ -f "${configSavePath}" ]
     then
-        cat << EOF > $HOME/$CONFIG_NAME
-HTTP_HOST=$HTTP_HOST
-BASE_PATH=$_local
-DB_HOST=$DB_HOST
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-MAGENTO_VERSION=$MAGENTO_VERSION
-MAGENTO_EE_PATH=$MAGENTO_EE_PATH
-GIT_CE_REPO=$GIT_CE_REPO
-GIT_EE_REPO=$GIT_EE_REPO
+        configSavePath="./$CONFIG_NAME"
+    fi
+    if askConfirmation "Do you want save config to ${configSavePath} (y/N)"
+    then
+        cat << EOF > ${configSavePath}
+$_configContent
 EOF
-            printString "Config file has been created in $HOME/$CONFIG_NAME";
+            printString "Config file has been created in ${configSavePath}";
         fi
     _local=
+    configSavePath=
 }
 
 function dropDB()
@@ -422,13 +572,19 @@ function createNewDB()
 
 function tuneAdminSessionLifetime()
 {
-    SQLQUERY="INSERT INTO ${DB_NAME}.${TBL_PREFIX}core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'admin/security/session_lifetime', '31536000') ON DUPLICATE KEY UPDATE value='31536000';";
+    SQLQUERY="INSERT INTO ${DB_NAME}.$(getTablePrefix)core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'admin/security/session_lifetime', '31536000') ON DUPLICATE KEY UPDATE value='31536000';";
     mysqlQuery
 }
 
 function disableNewRelic()
 {
-    SQLQUERY="INSERT INTO ${DB_NAME}.${TBL_PREFIX}core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'newrelicreporting/general/enable', '0') ON DUPLICATE KEY UPDATE value='0';";
+    SQLQUERY="INSERT INTO ${DB_NAME}.$(getTablePrefix)core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'newrelicreporting/general/enable', '0') ON DUPLICATE KEY UPDATE value='0';";
+    mysqlQuery
+}
+
+function tuneFullPageCacheSettings()
+{
+    SQLQUERY="INSERT INTO ${DB_NAME}.$(getTablePrefix)core_config_data (scope, scope_id, path, value) VALUES ('default', 0, 'system/full_page_cache/caching_application', '1') ON DUPLICATE KEY UPDATE value='1';";
     mysqlQuery
 }
 
@@ -437,23 +593,25 @@ function restore_db()
     dropDB
     createNewDB
 
-    getDbDumpFilename
-
-    CMD="gunzip -cf \"$FILENAME_DB_DUMP\""
+    CMD="gunzip -cf \"$(getDbDumpFilename)\""
     if which pv > /dev/null
     then
-        CMD="pv \"${FILENAME_DB_DUMP}\" | gunzip -cf";
+        CMD="pv \"$(getDbDumpFilename)\" | gunzip -cf";
     fi
 
+    # Don't be confused by double gunzip in following command. Some poorly
+    # configured web servers can gzip everything including gzip files
     CMD="${CMD} | gunzip -cf | sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/'
+        | sed -e 's/TRIGGER[ ][\`][A-Za-z0-9_]*[\`][.]/TRIGGER /'
+        | sed -e 's/AFTER[ ]\(INSERT\)\{0,1\}\(UPDATE\)\{0,1\}\(DELETE\)\{0,1\}[ ]ON[ ][\`][A-Za-z0-9_]*[\`][.]/AFTER \1\2\3 ON /'
         | grep -v 'mysqldump: Couldn.t find table' | grep -v 'Warning: Using a password'
-        | ${BIN_MYSQL} -u${DB_USER} --password=${DB_PASSWORD} --force $DB_NAME";
+        | ${BIN_MYSQL} -h${DB_HOST_SH} -u${DB_USER} --password=\"${DB_PASSWORD}\" --force $DB_NAME";
     runCommand
 }
 
 function restore_code()
 {
-    EXTRACT_FILENAME=$FILENAME_CODE_DUMP
+    EXTRACT_FILENAME="$(getCodeDumpFilename)"
     extract
 
     CMD="mkdir -p var pub/media pub/static"
@@ -462,13 +620,21 @@ function restore_code()
 
 function configure_files()
 {
+    CMD="find -L ./pub -type l -delete"
+    runCommand
     updateMagentoEnvFile
     overwriteOriginalFiles
     CMD="find . -type d -exec chmod 775 {} \; && find . -type f -exec chmod 664 {} \;"
     runCommand
+}
 
-    CMD="find ./pub  -type l -! -exec test -e {} \; -print |xargs unlink"
-    runCommand
+function appConfigImport()
+{
+    if php bin/magento | grep -q app:config:import
+    then
+        CMD="php bin/magento app:config:import -n"
+        runCommand
+    fi
 }
 
 function configure_db()
@@ -476,58 +642,124 @@ function configure_db()
     updateBaseUrl
     clearBaseLinks
     clearCookieDomain
+    clearSslFlag
     clearCustomAdmin
+    replaceFastlyKey
+    enableBuiltinCache
     resetAdminPassword
+}
+
+function validateDeploymentFromDumps()
+{
+    local files=(
+      'composer.json'
+      'composer.lock'
+      'index.php'
+      'pub/index.php'
+      'pub/static.php'
+    );
+    local directories=("app" "bin" "dev" "lib" "pub/errors" "setup" "vendor");
+    missingDirectories=();
+    for dir in "${directories[@]}"
+    do
+        if [ ! -d "$dir" ]; then
+            missingDirectories+=("$dir");
+        fi
+    done
+    if [[ "${missingDirectories[@]-}" ]]
+    then
+        echo "The following directories are missing: ${missingDirectories[@]}";
+    fi
+
+    missingFiles=()
+    for file in "${files[@]}"
+    do
+        if [ ! -f "$file" ]; then
+            missingFiles+=("$file");
+        fi
+    done
+    if [[ "${missingFiles[@]-}" ]]
+    then
+        echo "The following files are missing: ${missingFiles[@]}";
+    fi
+    if [[ "${missingDirectories[@]-}" || "${missingFiles[@]-}" ]]
+    then
+        printError "Download missing files and directories from vanilla magento"
+    fi
 }
 
 function updateBaseUrl()
 {
-    SQLQUERY="UPDATE ${DB_NAME}.${TBL_PREFIX}core_config_data AS e SET e.value = '${BASE_URL}' WHERE e.path IN ('web/secure/base_url', 'web/unsecure/base_url')"
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)core_config_data AS e SET e.value = '${BASE_URL}' WHERE e.path IN ('web/secure/base_url', 'web/unsecure/base_url')"
     mysqlQuery
 }
 
 function clearBaseLinks()
 {
-    SQLQUERY="DELETE FROM ${DB_NAME}.${TBL_PREFIX}core_config_data WHERE path IN ('web/unsecure/base_link_url', 'web/secure/base_link_url', 'web/unsecure/base_static_url', 'web/unsecure/base_media_url', 'web/secure/base_static_url', 'web/secure/base_media_url')";
+    SQLQUERY="DELETE FROM ${DB_NAME}.$(getTablePrefix)core_config_data WHERE path IN ('web/unsecure/base_link_url', 'web/secure/base_link_url', 'web/unsecure/base_static_url', 'web/unsecure/base_media_url', 'web/secure/base_static_url', 'web/secure/base_media_url')";
     mysqlQuery
 }
 
 function clearCookieDomain()
 {
-    SQLQUERY="DELETE FROM ${DB_NAME}.${TBL_PREFIX}core_config_data WHERE path = 'web/cookie/cookie_domain'"
+    SQLQUERY="DELETE FROM ${DB_NAME}.$(getTablePrefix)core_config_data WHERE path = 'web/cookie/cookie_domain'"
+    mysqlQuery
+}
+
+function clearSslFlag()
+{
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)core_config_data AS e SET e.value = 0 WHERE e.path IN ('web/secure/use_in_adminhtm', 'web/secure/use_in_frontend')"
     mysqlQuery
 }
 
 function clearCustomAdmin()
 {
-    SQLQUERY="DELETE FROM ${DB_NAME}.${TBL_PREFIX}core_config_data WHERE path = 'admin/url/custom'"
+    SQLQUERY="DELETE FROM ${DB_NAME}.$(getTablePrefix)core_config_data WHERE path = 'admin/url/custom'"
     mysqlQuery
-    SQLQUERY="UPDATE ${DB_NAME}.${TBL_PREFIX}core_config_data SET ${DB_NAME}.${TBL_PREFIX}core_config_data.value = '0' WHERE path = 'admin/url/use_custom'"
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)core_config_data SET ${DB_NAME}.$(getTablePrefix)core_config_data.value = '0' WHERE path = 'admin/url/use_custom'"
     mysqlQuery
-    SQLQUERY="DELETE FROM ${DB_NAME}.${TBL_PREFIX}core_config_data WHERE path = 'admin/url/custom_path'"
+    SQLQUERY="DELETE FROM ${DB_NAME}.$(getTablePrefix)core_config_data WHERE path = 'admin/url/custom_path'"
     mysqlQuery
-    SQLQUERY="UPDATE ${DB_NAME}.${TBL_PREFIX}core_config_data SET ${DB_NAME}.${TBL_PREFIX}core_config_data.value = '0' WHERE path = 'admin/url/use_custom_path'"
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)core_config_data SET ${DB_NAME}.$(getTablePrefix)core_config_data.value = '0' WHERE path = 'admin/url/use_custom_path'"
+    mysqlQuery
+}
+
+function replaceFastlyKey()
+{
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)core_config_data AS e SET e.value = 'replaced_by_m2install' WHERE e.path = 'system/full_page_cache/fastly/fastly_api_key'"
+    mysqlQuery
+}
+
+function enableBuiltinCache()
+{
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)core_config_data AS e SET e.value = 1 WHERE e.path = 'system/full_page_cache/caching_application'"
     mysqlQuery
 }
 
 function resetAdminPassword()
 {
-    SQLQUERY="UPDATE ${DB_NAME}.${TBL_PREFIX}admin_user SET ${DB_NAME}.${TBL_PREFIX}admin_user.email = 'mail@magento.com' WHERE ${DB_NAME}.${TBL_PREFIX}admin_user.username = 'admin'"
+    SQLQUERY="UPDATE ${DB_NAME}.$(getTablePrefix)admin_user SET ${DB_NAME}.$(getTablePrefix)admin_user.email = '${ADMIN_EMAIL}' WHERE ${DB_NAME}.$(getTablePrefix)admin_user.username = '${ADMIN_NAME}'"
     mysqlQuery
     CMD="${BIN_MAGE} admin:user:create
-        --admin-user='admin'
-        --admin-password='123123q'
-        --admin-email='mail@magento.com'
-        --admin-firstname='Magento'
-        --admin-lastname='User'"
+        --admin-user='${ADMIN_NAME}'
+        --admin-password='${ADMIN_PASSWORD}'
+        --admin-email='${ADMIN_EMAIL}'
+        --admin-firstname='${ADMIN_FIRSTNAME}'
+        --admin-lastname='${ADMIN_LASTNAME}'"
     runCommand
 }
 
 function overwriteOriginalFiles()
 {
+    if [ -f app/etc/config.local.php ] && [ ! -f app/etc/config.local.php ]
+    then
+        CMD="mv app/etc/config.local.php app/etc/config.local.php.merchant"
+        runCommand
+    fi
+
     if [ ! -f pub/static.php ]
     then
-        CMD="curl -s -o pub/static.php https://raw.githubusercontent.com/magento/magento2/2.1/pub/static.php"
+        CMD="curl -s -o pub/static.php https://raw.githubusercontent.com/magento/magento2/${MAGENTO_VERSION}/pub/static.php"
         runCommand
     fi
 
@@ -536,7 +768,7 @@ function overwriteOriginalFiles()
         CMD="mv .htaccess .htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o .htaccess https://raw.githubusercontent.com/magento/magento2/2.1/.htaccess"
+    CMD="curl -s -o .htaccess https://raw.githubusercontent.com/magento/magento2/${MAGENTO_VERSION}/.htaccess"
     runCommand
 
     if [ -f pub/.htaccess ] && [ ! -f pub/.htaccess.merchant ]
@@ -544,7 +776,7 @@ function overwriteOriginalFiles()
         CMD="mv pub/.htaccess pub/.htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o pub/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/.htaccess"
+    CMD="curl -s -o pub/.htaccess https://raw.githubusercontent.com/magento/magento2/${MAGENTO_VERSION}/pub/.htaccess"
     runCommand
 
     if [ -f pub/static/.htaccess ] && [ ! -f pub/static/.htaccess.merchant ]
@@ -552,7 +784,7 @@ function overwriteOriginalFiles()
         CMD="mv pub/static/.htaccess pub/static/.htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o pub/static/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/static/.htaccess"
+    CMD="curl -s -o pub/static/.htaccess https://raw.githubusercontent.com/magento/magento2/${MAGENTO_VERSION}/pub/static/.htaccess"
     runCommand
 
     if [ -f pub/media/.htaccess ] && [ ! -f pub/media/.htaccess.merchant ]
@@ -560,25 +792,36 @@ function overwriteOriginalFiles()
         CMD="mv pub/media/.htaccess pub/media/.htaccess.merchant"
         runCommand
     fi
-    CMD="curl -s -o pub/media/.htaccess https://raw.githubusercontent.com/magento/magento2/2.1/pub/media/.htaccess"
+    CMD="curl -s -o pub/media/.htaccess https://raw.githubusercontent.com/magento/magento2/${MAGENTO_VERSION}/pub/media/.htaccess"
     runCommand
+}
+
+function getTablePrefix()
+{
+    echo $(grep 'table_prefix' app/etc/env.php | head -n1 | sed "s/[a-z'_ ]*[=][>][ ]*[']//" | sed "s/['][,]//")
+    return 0;
 }
 
 function updateMagentoEnvFile()
 {
-    TBL_PREFIX=$(grep 'table_prefix' app/etc/env.php | head -n1 | sed "s/[a-z'_ ]*[=][>][ ]*[']//" | sed "s/['][,]//")
-
     _key="'key' => 'ec3b1c29111007ac5d9245fb696fb729',"
     _date="'date' => 'Fri, 27 Nov 2015 12:24:54 +0000',"
-    _table_prefix="'table_prefix' => '${TBL_PREFIX}',"
+    _table_prefix="'table_prefix' => '$(getTablePrefix)',"
 
 
     if [ -f app/etc/env.php ] && [ ! -f app/etc/env.php.merchant ]
     then
         CMD="cp app/etc/env.php app/etc/env.php.merchant"
         runCommand
-
-        _key=$(grep key app/etc/env.php.merchant)
+    fi
+    if [ -f app/etc/env.php.merchant ]
+    then
+        if grep key app/etc/env.php.merchant | grep -q "[\'][,]"
+        then
+            _key=$(grep key app/etc/env.php.merchant | grep "[\'][,]")
+        else
+            _key=$(sed -n "/key/,/[\'][,]/p" app/etc/env.php.merchant)
+        fi
         _date=$(grep date app/etc/env.php.merchant)
         _table_prefix=$(grep table_prefix app/etc/env.php.merchant)
     fi
@@ -587,7 +830,57 @@ function updateMagentoEnvFile()
 return array(
   'backend' =>
     array(
-      'frontName' => 'admin',
+      'frontName' => '${BACKEND_FRONTNAME}',
+    ),
+  'queue' =>
+    array(
+      'amqp' =>
+        array(
+          'host' => 'rabbit',
+          'port' => '5672',
+          'user' => 'magento2',
+          'password' => 'magento2',
+          'virtualhost' => '/',
+          'ssl' => '',
+        ),
+    ),
+  'db' =>
+    array(
+      'connection' =>
+        array(
+          'indexer' =>
+            array(
+              'host' => '${DB_HOST}',
+              'dbname' => '${DB_NAME}',
+              'username' => '${DB_USER}',
+              'password' => '${DB_PASSWORD}',
+              'model' => 'mysql4',
+              'engine' => 'innodb',
+              'initStatements' => 'SET NAMES utf8;',
+              'active' => '1',
+              'persistent' => NULL,
+            ),
+          'default' =>
+            array(
+              'host' => '${DB_HOST}',
+              'dbname' => '${DB_NAME}',
+              'username' => '${DB_USER}',
+              'password' => '${DB_PASSWORD}',
+              'model' => 'mysql4',
+              'engine' => 'innodb',
+              'initStatements' => 'SET NAMES utf8;',
+              'active' => '1',
+            ),
+        ),
+      ${_table_prefix}
+    ),
+  'install' =>
+    array(
+      ${_date}
+    ),
+  'crypt' =>
+    array(
+      ${_key}
     ),
   'cache' =>
     array(
@@ -646,56 +939,6 @@ return array(
           'max_lifetime' => '2592000'
         )
     ),
-  'queue' =>
-    array(
-      'amqp' =>
-        array(
-          'host' => 'rabbit',
-          'port' => '5672',
-          'user' => 'magento2',
-          'password' => 'magento2',
-          'virtualhost' => '/',
-          'ssl' => '',
-        ),
-    ),
-  'db' =>
-    array(
-      'connection' =>
-        array(
-          'indexer' =>
-            array(
-              'host' => '${DB_HOST}',
-              'dbname' => '${DB_NAME}',
-              'username' => '${DB_USER}',
-              'password' => '${DB_PASSWORD}',
-              'model' => 'mysql4',
-              'engine' => 'innodb',
-              'initStatements' => 'SET NAMES utf8;',
-              'active' => '1',
-              'persistent' => NULL,
-            ),
-          'default' =>
-            array(
-              'host' => '${DB_HOST}',
-              'dbname' => '${DB_NAME}',
-              'username' => '${DB_USER}',
-              'password' => '${DB_PASSWORD}',
-              'model' => 'mysql4',
-              'engine' => 'innodb',
-              'initStatements' => 'SET NAMES utf8;',
-              'active' => '1',
-            ),
-        ),
-      ${_table_prefix}
-    ),
-  'install' =>
-    array(
-      ${_date}
-    ),
-  'crypt' =>
-    array(
-      ${_key}
-    ),
   'resource' =>
     array(
       'default_setup' =>
@@ -712,7 +955,7 @@ return array(
   'x-frame-options' => 'SAMEORIGIN',
   'MAGE_MODE' => 'default',
   'cache_types' =>
-    array(
+  array(
       'config' => 1,
       'layout' => 1,
       'block_html' => 1,
@@ -723,7 +966,6 @@ return array(
       'full_page' => 1,
       'config_integration' => 1,
       'config_integration_api' => 1,
-      'customer_notification' => 1,
       'target_rule' => 1,
       'translate' => 1,
       'config_webservice' => 1,
@@ -762,6 +1004,9 @@ function installSampleData()
     if php bin/magento --version | grep -q beta
     then
         _installSampleDataForBeta;
+    elif [ "$SOURCE" == 'git' ]
+    then
+        _installGitSampleData;
     else
         _installSampleData;
     fi
@@ -820,25 +1065,57 @@ function _installSampleDataForBeta()
     runCommand
 }
 
+function _installGitSampleData()
+{
+    CMD="${BIN_GIT} clone $GIT_CE_SD_REPO $GIT_CE_SD_PATH && cd $GIT_CE_SD_PATH && ${BIN_GIT} checkout $MAGENTO_VERSION && cd .."
+    runCommand
+    CMD="php -f $GIT_CE_SD_PATH/dev/tools/build-sample-data.php -- --ce-source=."
+    runCommand
+
+    if [[ "$GIT_EE_SD_REPO" ]] && [[ "$INSTALL_EE" ]]
+    then
+        CMD="${BIN_GIT} clone $GIT_EE_SD_REPO $GIT_EE_SD_PATH && cd $GIT_EE_SD_PATH && ${BIN_GIT} checkout $MAGENTO_VERSION && cd .."
+        runCommand
+        CMD="php -f $GIT_EE_SD_PATH/dev/tools/build-sample-data.php -- --ce-source=. --ee-source=$MAGENTO_EE_PATH"
+        runCommand
+    fi
+
+    CMD="${BIN_MAGE} setup:upgrade"
+    runCommand
+}
+
+function installB2B()
+{
+    if [ "${SOURCE}" == 'git' ]
+    then
+        CMD="${BIN_COMPOSER} config repositories.b2b composer https://repo.magento.com/"
+        runCommand
+    fi
+    CMD="${BIN_COMPOSER} require magento/extension-b2b"
+    runCommand
+    CMD="${BIN_MAGE} setup:upgrade"
+    runCommand
+}
+
 function linkEnterpriseEdition()
 {
     if [ "${SOURCE}" == 'composer' ]
     then
         return;
     fi
-    if [ "${MAGENTO_EE_PATH}" ]
+    if [ "${EE_PATH}" ] && [ "$INSTALL_EE" ]
     then
-        if [ ! -d "$MAGENTO_EE_PATH" ]
+        if [ ! -d "$EE_PATH" ]
         then
-            printError "There is no Enterprise Edition directory ${MAGENTO_EE_PATH}"
-            printError "Use absolute or relative path to EE code base or [N] to skip it"
-            exit
+            printError "There is no Enterprise Edition directory ${EE_PATH}"
+            printString "Use absolute or relative path to EE code base or [N] to skip it"
+            exit 1
         fi
-        CMD="php ${MAGENTO_EE_PATH}/dev/tools/build-ee.php --ce-source $(pwd) --ee-source ${MAGENTO_EE_PATH}"
+        CMD="php ${EE_PATH}/dev/tools/build-ee.php --ce-source $(pwd) --ee-source ${EE_PATH}"
         runCommand
-        CMD="cp ${MAGENTO_EE_PATH}/composer.json $(pwd)/"
+        CMD="cp ${EE_PATH}/composer.json $(pwd)/"
         runCommand
-        CMD="cp ${MAGENTO_EE_PATH}/composer.lock $(pwd)/"
+        CMD="cp ${EE_PATH}/composer.lock $(pwd)/"
         runCommand
     fi
 }
@@ -865,18 +1142,24 @@ function installMagento()
     --db-host=${DB_HOST} \
     --db-name=${DB_NAME} \
     --db-user=${DB_USER} \
-    --admin-firstname=Magento \
-    --admin-lastname=User \
-    --admin-email=mail@magento.com \
-    --admin-user=admin \
-    --admin-password=123123q \
-    --language=en_US \
-    --currency=USD \
-    --timezone=America/Chicago \
+    --admin-firstname=${ADMIN_FIRSTNAME} \
+    --admin-lastname=${ADMIN_LASTNAME} \
+    --admin-email=${ADMIN_EMAIL} \
+    --admin-user=${ADMIN_NAME} \
+    --admin-password=${ADMIN_PASSWORD} \
+    --language=${LANGUAGE} \
+    --currency=${CURRENCY} \
+    --timezone=${TIMEZONE} \
     --use-rewrites=1 \
-    --backend-frontname=admin"
+    --backend-frontname=${BACKEND_FRONTNAME}"
     if [ "${DB_PASSWORD}" ]; then
         CMD="${CMD} --db-password=${DB_PASSWORD}"
+    fi
+    if [ ping -c 1 -W 1 rabbit ]; then
+    CMD="${CMD} --amqp-host=\"rabbit\" \
+    --amqp-port=\"5672\" \
+    --amqp-user=\"guest\" \
+    --amqp-password=\"guest\""
     fi
     runCommand
 }
@@ -885,8 +1168,8 @@ function downloadSourceCode()
 {
     if [ "$(ls -A ./)" ]; then
         printError "Can't download source code from ${SOURCE} since current directory doesn't empty."
-        printError "You can remove all files from current directory using next command:"
-        printError "ls -A | xargs rm -rf"
+        printString "You can remove all files from current directory using next command:"
+        printString "ls -A | xargs rm -rf"
         exit 1;
     fi
     if [ "$SOURCE" == 'composer' ]
@@ -902,12 +1185,12 @@ function downloadSourceCode()
 
 function composerInstall()
 {
-    if [ "$MAGENTO_EE_PATH" ]
+    if [ "$INSTALL_EE" ]
     then
         CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-enterprise-edition . ${MAGENTO_VERSION}"
         runCommand
     else
-        CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-community-edition . $MAGENTO_VERSION"
+        CMD="${BIN_COMPOSER} create-project --repository-url=https://repo.magento.com/ magento/project-community-edition . ${MAGENTO_VERSION}"
         runCommand
     fi
 }
@@ -918,13 +1201,11 @@ showComposerWizzard()
     then
         return;
     fi
-    askValue "Composer Magento version" ${MAGENTO_VERSION}
+    askValue "Composer Magento version" "${MAGENTO_VERSION}"
     MAGENTO_VERSION=${READVALUE}
     if askConfirmation "Do you want to install Enterprise Edition (y/N)"
     then
-        MAGENTO_EE_PATH="y"
-    else
-        MAGENTO_EE_PATH=
+        INSTALL_EE=1
     fi
 
 }
@@ -953,30 +1234,44 @@ function showWizzardGit()
     MAGENTO_VERSION=${READVALUE}
     if askConfirmation "Do you want to install Enterprise Edition (y/N)"
     then
-        askValue "Enter path to the directory with Enterprise Edition" "${MAGENTO_EE_PATH}"
-        MAGENTO_EE_PATH=${READVALUE}
-    else
-        MAGENTO_EE_PATH=
+        INSTALL_EE=1
     fi
 }
 
 function gitClone()
 {
+    validateGitRepository "${GIT_CE_REPO}" "${MAGENTO_VERSION}"
+    validateGitRepository "${GIT_EE_REPO}" "${MAGENTO_VERSION}"
+
     CMD="${BIN_GIT} clone $GIT_CE_REPO ."
     runCommand
+
     CMD="${BIN_GIT} checkout $MAGENTO_VERSION"
     runCommand
 
-    if [[ "$GIT_EE_REPO" ]] && [[ "$MAGENTO_EE_PATH" ]]
+    if [[ "$GIT_EE_REPO" ]] && [[ "$INSTALL_EE" ]]
     then
-        CMD="${BIN_GIT} clone $GIT_EE_REPO $MAGENTO_EE_PATH"
+        CMD="${BIN_GIT} clone $GIT_EE_REPO $EE_PATH"
         runCommand
-        CMD="cd ${MAGENTO_EE_PATH}"
+        CMD="cd ${EE_PATH}"
         runCommand
         CMD="${BIN_GIT} checkout $MAGENTO_VERSION"
         runCommand
         CMD="cd .."
         runCommand
+    fi
+}
+
+function validateGitRepository()
+{
+    local repoName=$1
+    local versionName=$2
+
+    local isBranchExists=$(${BIN_GIT} ls-remote ${repoName} | grep -F ${versionName})
+    if [ ! "$isBranchExists" ]
+    then
+        printError "Requested tag or branch ${versionName} does not exists in ${repoName}"
+        exit 1;
     fi
 }
 
@@ -996,7 +1291,7 @@ function checkArgumentHasValue()
 {
     if [ ! "$2" ]
     then
-        printError "ERROR: $1 Argument is empty."
+        printError "$1 Argument is empty."
         printLine
         printUsage
         exit
@@ -1016,7 +1311,7 @@ function isInputNegative()
 function validateStep()
 {
     local _step=$1;
-    local _steps="restore_db restore_code configure_db configure_files configure"
+    local _steps="restore_db restore_code configure_db configure_files configure installB2B"
     if echo "$_steps" | grep -q "$_step"
     then
         if type -t "$_step" &>/dev/null
@@ -1032,9 +1327,8 @@ function prepareSteps()
     local _step;
     local _steps;
 
-    _steps=($(echo "${STEPS[@]}" | tr "," " "))
-    STEPS=();
-
+    _steps=(${STEPS[@]//,/ })
+    STEPS=
     for _step in "${_steps[@]}"
     do
         if validateStep "$_step"
@@ -1058,9 +1352,60 @@ function setProductionMode()
 
 function setFilesystemPermission()
 {
-    CMD="chmod -R a+x ./bin/magento"
+    CMD="chmod a+x ./bin/magento"
     runCommand
-    CMD="chmod -R 2777 ./var ./pub/media ./pub/static ./app/etc"
+    local _writeableDirectories="./var ./pub/media ./pub/static ./app/etc"
+    if [ -d './generated' ]
+    then
+        _writeableDirectories="$_writeableDirectories ./generated"
+    fi
+    CMD="chmod -R 2777 ${_writeableDirectories}"
+    runCommand
+}
+
+function executePostDeployScript()
+{
+    if [ ! "$(getRequest skipPostDeploy)" ] && [ -f "$1" ]
+    then
+        printString "==> Run the post deploy $1"
+        source "$1";
+        printString "==> Post deploy script has been finished"
+    fi
+    return 0;
+}
+
+function afterInstall()
+{
+    if [[ "$MAGE_MODE" == "production" ]]
+    then
+        setProductionMode
+    fi
+    executePostDeployScript "$(getScriptDirectory)/post-deploy"
+    executePostDeployScript "$HOME/post-deploy"
+    setFilesystemPermission
+    disableSlowMagentoModules
+    tuneAdminSessionLifetime
+    disableNewRelic
+    deployStaticContent
+    # @ToDo: Add image processing from modules/pub
+}
+
+function executeSteps()
+{
+    local _steps=("$@")
+    for step in "${_steps[@]}"
+    do
+        if [ "${step}" ]
+        then
+            CMD="${step}"
+            runCommand "=> "
+        fi
+    done
+}
+
+function disableSlowMagentoModules()
+{
+    CMD="bin/magento module:disable Magento_ScalableCheckout Magento_ScalableInventory Magento_ScalableOms"
     runCommand
 }
 
@@ -1076,118 +1421,115 @@ Options:
     -s, --source (git, composer)         Get source code.
     -f, --force                          Install/Restore without any confirmations.
     --sample-data (yes, no)              Install sample data.
-    --ee-path (/path/to/ee)              Path to Enterprise Edition.
+    --ee                                 Install Enterprise Edition.
     -v, --version                        Magento Version - it means: Composer version or GIT Branch
     --mode (dev, prod)                   Magento Mode. Dev mode does not generate static & di content.
     --quiet                              Quiet mode. Suppress output all commands
+    --skip-post-deploy                   Skip the post deploy script if it is exist
     --step (restore_code,restore_db      Specify step through comma without spaces.
-        configure_db, configure_files)    - Example: $(basename "$0") --step restore_db,configure_db
+        configure_db, configure_files)   - Example: $(basename "$0") --step restore_db,configure_db
+    --restore-table                      Restore only the specific table from DB dumps
+    --debug                              Enable debug mode
+    _________________________________________________________________________________________________
+    --ee-path (/path/to/ee)              (DEPRECATED use --ee flag) Path to Enterprise Edition.
 EOF
 }
 
+function processOptions()
+{
+    while [[ $# -gt 0 ]]
+    do
+        case "$1" in
+            -s|--source)
+                checkArgumentHasValue "$1" "$2"
+                SOURCE="$2"
+                shift
+            ;;
+            -d|--sample-data)
+                checkArgumentHasValue "$1" "$2"
+                if isInputNegative "$2"
+                then
+                    USE_SAMPLE_DATA=
+                else
+                    USE_SAMPLE_DATA="$2"
+                fi
+                shift
+            ;;
+            -e|--ee-path)
+                # @DEPRECATED. Use --ee instead.
+                checkArgumentHasValue "$1" "$2"
+                EE_PATH="$2"
+                INSTALL_EE=1
+                shift
+            ;;
+            --ee)
+                INSTALL_EE=1
+            ;;
+            --b2b)
+                INSTALL_B2B=1
+            ;;
+            -b|--git-branch)
+                # @DEPRECATED. Use -v or --version instead
+                checkArgumentHasValue "$1" "$2"
+                MAGENTO_VERSION="$2"
+                shift
+            ;;
+            -v|--version)
+                checkArgumentHasValue "$1" "$2"
+                MAGENTO_VERSION="$2"
+                shift
+            ;;
+            --mode)
+                checkArgumentHasValue "$1" "$2"
+                MAGE_MODE=$2
+                shift
+            ;;
+            -f|--force)
+                FORCE=1
+                USE_WIZARD=0
+            ;;
+            --quiet)
+                VERBOSE=0
+            ;;
+            --skip-post-deploy)
+                setRequest skipPostDeploy 1
+            ;;
+            -h|--help)
+                printUsage
+                exit;
+            ;;
+            --code-dump)
+                checkArgumentHasValue "$1" "$2"
+                setRequest codedump "$2"
+                shift
+            ;;
+            --db-dump)
+                checkArgumentHasValue "$1" "$2"
+                setRequest dbdump "$2"
+                shift
+            ;;
+            --restore-table)
+                checkArgumentHasValue "$1" "$2"
+                setRequest restoreTableName "$2"
+                shift
+            ;;
+            --step)
+                checkArgumentHasValue "$1" "$2"
+                STEPS=($2)
+                shift
+                ;;
+            --debug)
+              set -o xtrace;
+            ;;
+        esac
+        shift
+    done
+}
 ################################################################################
-
-export LC_CTYPE=C
-export LANG=C
-
-loadConfigFile
-
-while [[ $# -gt 0 ]]
-do
-    case "$1" in
-        -s|--source)
-            checkArgumentHasValue "$1" "$2"
-            SOURCE="$2"
-            shift
-        ;;
-        -d|--sample-data)
-            checkArgumentHasValue "$1" "$2"
-            if isInputNegative "$2"
-            then
-                USE_SAMPLE_DATA=
-            else
-                USE_SAMPLE_DATA="$2"
-            fi
-            shift
-        ;;
-        -e|--ee-path)
-            checkArgumentHasValue "$1" "$2"
-            MAGENTO_EE_PATH="$2"
-            shift
-        ;;
-        -b|--git-branch)
-            checkArgumentHasValue "$1" "$2"
-            MAGENTO_VERSION="$2"
-            shift
-        ;;
-        -v|--version)
-            checkArgumentHasValue "$1" "$2"
-            MAGENTO_VERSION="$2"
-            shift
-        ;;
-        --mode)
-            checkArgumentHasValue "$1" "$2"
-            MAGE_MODE=$2
-            shift
-        ;;
-        -f|--force)
-            FORCE=1
-        ;;
-        --quiet)
-            VERBOSE=0
-        ;;
-        -h|--help)
-            printUsage
-            exit;
-        ;;
-        --code-dump)
-            checkArgumentHasValue "$1" "$2"
-            FILENAME_CODE_DUMP="$2"
-            shift
-        ;;
-        --db-dump)
-            checkArgumentHasValue "$1" "$2"
-            FILENAME_DB_DUMP="$2"
-            shift
-        ;;
-        --step)
-            checkArgumentHasValue "$1" "$2"
-            STEPS=($2)
-            shift
-        ;;
-    esac
-    shift
-done
-
-initQuietMode
-printString Current Directory: "$(pwd)"
-printString "Configuration loaded from: ${NEAREST_CONFIG_FILE[*]}"
-showWizard
-promptSaveConfig
-
-START_TIME=$(date +%s)
-if [[ "${STEPS[@]}" ]]
-then
-    prepareSteps
-elif foundSupportBackupFiles
-then
-    addStep "restore_code"
-    addStep "configure_files"
-    addStep "restore_db"
-    addStep "configure_db"
-    if [[ "$MAGE_MODE" == "production" ]]
-    then
-        addStep "setProductionMode"
-    fi
-    addStep "setFilesystemPermission"
-    if [[ "$MAGE_MODE" == "production" ]]
-    then
-        addStep "compileDi"
-    fi
-    addStep "deployStaticContent"
-    addStep "tuneAdminSessionLifetime"
-    addStep "disableNewRelic"
-else
+# Action Controllers
+################################################################################
+function magentoInstallAction()
+{
     if [[ "${SOURCE}" ]]
     then
         if [ "$(ls -A)" ] && askConfirmation "Current directory is not empty. Do you want to clean current Directory (y/N)"
@@ -1204,29 +1546,82 @@ else
     then
         addStep "installSampleData"
     fi
-    if [[ "$MAGE_MODE" == "production" ]]
+    if [[ "$INSTALL_EE" ]] && [[ "$INSTALL_B2B" ]]
     then
-        addStep "setProductionMode"
+        addStep "installB2B"
     fi
+}
+
+function magentoDeployDumpsAction()
+{
+    addStep "restore_code"
     addStep "configure_files"
-    addStep "setFilesystemPermission"
-    addStep "deployStaticContent"
-    addStep "tuneAdminSessionLifetime"
-    addStep "disableNewRelic"
-fi
+    addStep "restore_db"
+    addStep "configure_db"
+    addStep "validateDeploymentFromDumps"
+    addStep "appConfigImport"
+}
 
-for step in "${STEPS[@]}"
-do
-    CMD="${step}"
-    runCommand "=> "
-done
-END_TIME=$(date +%s)
-SUMMARY_TIME=$((((END_TIME - START_TIME)) / 60));
-printString "$(basename "$0") took $SUMMARY_TIME minutes to complete install/deploy process"
+function restoreTableAction()
+{
 
-printLine
+    CMD="{ echo 'SET FOREIGN_KEY_CHECKS=0;';
+       echo 'TRUNCATE ${DB_NAME}.$(getTablePrefix)$(getRequest restoreTableName);';
+       zgrep 'INSERT INTO \`$(getRequest restoreTableName)\`' $(getDbDumpFilename); }
+       | ${BIN_MYSQL} -h${DB_HOST_SH} -u${DB_USER} --password=\"${DB_PASSWORD}\" --force $DB_NAME";
+    runCommand
+}
 
-printString "${BASE_URL}"
-printString "${BASE_URL}admin"
-printString "User: admin"
-printString "Pass: 123123q"
+function magentoCustomStepsAction()
+{
+    prepareSteps
+}
+
+################################################################################
+# Main
+################################################################################
+
+export LC_CTYPE=C
+export LANG=C
+
+function main()
+{
+    loadConfigFile $(getConfigFiles)
+    processOptions "$@"
+    initQuietMode
+    printString Current Directory: "$(pwd)"
+    printString "Configuration loaded from: $(getConfigFiles)"
+    checkDependencies
+    showWizard
+
+    START_TIME=$(date +%s)
+    if [[ "${STEPS[@]}" ]]
+    then
+        magentoCustomStepsAction;
+    elif foundSupportBackupFiles
+    then
+        if getRequest restoreTableName
+        then
+            restoreTableAction
+        else
+            magentoDeployDumpsAction;
+        fi
+    else
+        magentoInstallAction;
+    fi
+    addStep "afterInstall"
+    executeSteps "${STEPS[@]}"
+
+    END_TIME=$(date +%s)
+    SUMMARY_TIME=$((((END_TIME - START_TIME)) / 60));
+    printString "$(basename "$0") took $SUMMARY_TIME minutes to complete install/deploy process"
+
+    printLine
+    printString "${BASE_URL}"
+    printString "${BASE_URL}${BACKEND_FRONTNAME}"
+    printString "User: ${ADMIN_NAME}"
+    printString "Pass: ${ADMIN_PASSWORD}"
+    promptSaveConfig
+}
+
+main "${@}"

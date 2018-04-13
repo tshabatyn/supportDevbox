@@ -1,0 +1,17 @@
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = magento1.local
+DNS.2 = *.magento1.local
+DNS.3 = magento2.local
+DNS.4 = *.magento2.local
+DNS.5 = *.com
+DNS.6 = *.co.uk
+DNS.7 = *.net
+DNS.8 = *.pl
+DNS.9 = *.ru
+DNS.10 = *.local
+

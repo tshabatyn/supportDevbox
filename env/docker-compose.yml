@@ -22,6 +22,7 @@ services:
       - ./supportTools/reloadPhpFpmIni.sh:/usr/local/bin/reloadPhpFpmIni.sh:ro
       - ./supportTools/xdebug-php.sh:/usr/local/bin/xdebug-php.sh:ro
       - ./supportTools/tideways-php.sh:/usr/local/bin/tideways-php.sh:ro
+      - ./supportTools/ioncube-php.sh:/usr/local/bin/ioncube-php.sh:ro
 
   db-data-container:
     container_name: support_db-data-container_11
@@ -32,45 +33,20 @@ services:
     volumes:
       - db-data:/var/lib/mysql
 
-  nfs-container:
-    container_name: support_nfs-container_11
-    build:
-      context: ./container-nfs
-    ports:
-      - "111:111"
-      - "111:111/udp"
-      - "2049:2049"
-      - "2049:2049/udp"
-      - "32765:32765"
-      - "32765:32765/udp"
-      - "32766:32766"
-      - "32766:32766/udp"
-      - "32767:32767"
-      - "32767:32767/udp"
-      - "34567:34567"
-      - "34567:34567/udp"
-      - "34568:34568"
-      - "34568:34568/udp"
-    volumes:
-      - nfs-data:/var/nfs
-    networks:
-      vpcb:
-        ipv4_address: 192.168.3.10
-
 ## Apache
   web:
     container_name: support_web_11
     image: httpd:2.4
     ports:
       - "443:443"
-      - "80:80"    # Uncomment with Disabled Varnish
+      - "80:80"    # Comment with Enabled Varnish, Uncomment with Disabled Varnish
 #      - "8080:80"  # Uncomment with Enabled Varnish
 #    expose:         # Uncomment with Enabled Varnish
 #      - 80          # Uncomment with Enabled Varnish
     links:
-#      - php55
       - php56
       - php70
+      - php71
     depends_on:
       - mysql56
     networks:
@@ -90,6 +66,8 @@ services:
       - ./conf/httpd/conf/httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
       - ./conf/httpd/conf/extra/httpd-ssl.conf:/usr/local/apache2/conf/extra/httpd-ssl.conf:ro
       - ./conf/httpd/conf/extra/httpd-vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
+      - ./conf/httpd/conf/extra/httpd-caching.conf:/usr/local/apache2/conf/extra/httpd-caching.conf:ro
+      - ./conf/httpd/conf/extra/httpd-compresion.conf:/usr/local/apache2/conf/extra/httpd-compresion.conf:ro
       - ./conf/httpd/ssl:/usr/local/apache2/conf/ssl/:ro
 
 
@@ -113,28 +91,12 @@ services:
 
 
 ## PHP
-#  php55:
-#    container_name: support_php55_11
-#    build:
-#      context: ./php/php55
-#      args:
-#        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
-#    links:
-#      - redis
-#      - mysql56:db
-#      - mailcatcher
-##      - mongo # we need it for xhprof
-#    volumes_from:
-#      - source-code-container
-#    ports:
-#      - "2231:22"
-
   php56:
     container_name: support_php56_11
     build:
       context: ./php/php56
       args:
-        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip pcntl
     links:
       - redis
       - mysql56:db
@@ -143,14 +105,48 @@ services:
     volumes_from:
       - source-code-container
     ports:
-      - "2232:22"
+      - "2231:22"
 
   php70:
     container_name: support_php70_11
     build:
       context: ./php/php70
       args:
-        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip pcntl
+    links:
+      - redis
+      - mysql56:db
+      - mailcatcher
+      - mongo # we need it for xhprof
+      - rabbit
+    volumes_from:
+      - source-code-container
+    ports:
+      - "2232:22"
+
+  php70w1:
+    container_name: worker_php70_1
+    build:
+      context: ./php/php70
+      args:
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip pcntl
+    links:
+      - redis
+      - mysql56:db
+      - mailcatcher
+      - mongo # we need it for xhprof
+      - rabbit
+    volumes_from:
+      - source-code-container
+    ports:
+      - "2322:22"
+
+  php71:
+    container_name: support_php71_11
+    build:
+      context: ./php/php71
+      args:
+        php_ext: bcmath curl dom json iconv intl mbstring mcrypt opcache pdo pdo_mysql session simplexml soap sockets xml xmlrpc xsl zip pcntl
     links:
       - redis
       - mysql56:db
@@ -168,7 +164,6 @@ services:
     image: redis
     volumes:
       - redis:/var/run/redis/
-#      - ./data/redis:/data
       - ./conf/redis/redis.conf:/etc/redis.conf:ro
     command: bash -c "redis-server /etc/redis.conf"
 
@@ -183,22 +178,20 @@ services:
       - db-data-container
     volumes:
       - db:/var/run/mysqld/
-#      - ./data/mysql56/data:/var/lib/mysql
-#      - ./data/mysql56/logs/mysql:/var/log/mysql
       - ./conf/db/.my.cnf:/root/.my.cnf:ro
       - ./conf/db/etc/mysql/conf.d/:/etc/mysql/conf.d/
 
 ## Jobs/ Queues
-#  rabbit:
-#    container_name: support_rabbit_11
-#    restart: always
-#    image: rabbitmq:3-management
-#    environment:
-#      - RABBITMQ_DEFAULT_USER=magento2
-#      - RABBITMQ_DEFAULT_PASS=magento2
-#    ports:
-#      - "8282:15672"
-#      - "5672:5672"
+  rabbit:
+    container_name: support_rabbit_11
+    restart: always
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=magento2
+      - RABBITMQ_DEFAULT_PASS=magento2
+    ports:
+      - "15672:15672"
+      - "5672:5672"
 
 ## Search engines
 #  solr:
@@ -213,7 +206,7 @@ services:
 #      - "8983:8983"
 
   elasticsearch:
-    container_name: support_elasticsearch_11
+    container_name: support_elasticsearch_2
     restart: always
     image: elasticsearch:2.4
     ports:
@@ -221,10 +214,19 @@ services:
     volumes:
       - ./conf/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 
+#  elasticsearch:
+#    container_name: support_elasticsearch_5
+#    restart: always
+#    image: elasticsearch:5.6
+#    ports:
+#      - "9200:9200"
+#    volumes:
+#      - ./conf/elasticsearch/config/elasticsearch5.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+
 
 ## Email
   mailcatcher:
-    container_name: support_mailcatcher_11
+    container_name: support_mailcatcher
     image: schickling/mailcatcher
     expose:
       - 1025
@@ -243,12 +245,3 @@ volumes:
   redis: {}
   src: {}
   db-data: {}
-  nfs-data: {}
-
-networks:
-  vpcb:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 192.168.3.0/16
-          gateway: 192.168.3.1
