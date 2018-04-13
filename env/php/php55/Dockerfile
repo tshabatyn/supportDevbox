@@ -89,7 +89,9 @@ RUN sed -i 's/www-data/root/g' /usr/local/etc/php-fpm.d/www.conf
 
 RUN sed -i 's/UMASK\s*022/UMASK\t002/' /etc/login.defs
 RUN echo 'umask 002' >> /etc/profile
-RUN echo 'alias ll="ls -lA"' >>/root/.bashrc
+RUN echo echo 'alias ll="ls -lA"' >> /root/.bashrc \
+    ; echo 'alias lt="ls -lth"' >> /root/.bashrc \
+    ; echo 'alias ltr="ls -ltrh"' >> /root/.bashrc
 
 RUN echo 'root:root' | chpasswd
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config

@@ -106,7 +106,9 @@ RUN sed -i 's/www-data/root/g' /usr/local/etc/php-fpm.d/www.conf
 
 RUN sed -i 's/UMASK\s*022/UMASK\t002/' /etc/login.defs
 RUN echo 'umask 002' >> /etc/profile
-RUN echo 'alias ll="ls -lA"' >>/root/.bashrc
+RUN echo 'alias ll="ls -lA"' >> /root/.bashrc \
+    ; echo 'alias lt="ls -lth"' >> /root/.bashrc \
+    ; echo 'alias ltr="ls -ltrh"' >> /root/.bashrc
 
 RUN echo 'root:root' | chpasswd
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
@@ -139,11 +141,13 @@ RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bashrc \
     && echo " . /etc/bash_completion" >> /root/.bashrc \
     && echo "fi" >> /root/.bashrc
 
-RUN chmod a+x /usr/local/bin/reloadPhpFpmIni.sh /usr/local/bin/tideways-php.sh /usr/local/bin/xdebug-php.sh \
-    ; ln -s /usr/local/bin/tideways-php.sh /usr/local/bin/profiler.sh \
+RUN ln -s /usr/local/bin/tideways-php.sh /usr/local/bin/profiler.sh \
     ; ln -s /usr/local/bin/tideways-php.sh /usr/local/bin/php-profiler.sh \
     ; ln -s /usr/local/bin/xdebug-php.sh /usr/local/bin/debugger.sh \
-    ; ln -s /usr/local/bin/xdebug-php.sh /usr/local/bin/php-debugger.sh
+    ; ln -s /usr/local/bin/xdebug-php.sh /usr/local/bin/php-debugger.sh \
+    ; ln -s /usr/local/bin/ioncube-php.sh /usr/local/bin/php-ioncube.sh
+
+RUN echo ";zend_extension=/var/www/ioncube/ioncube_loader_lin_7.0.so" > $PHP_INI_DIR/conf.d/docker-php-ext-ioncube.ini
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
 

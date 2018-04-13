@@ -7,7 +7,7 @@
 
 ##Table open cache under MacOS and MySQL 5.6 should be 250.
 ##Otherwise you will get error MySQL server has gone away
-table-open-cache                     = 250
+table_open_cache                     = 250
 
 ## Logging slow queries
 slow_query_log                       = 0
@@ -15,36 +15,36 @@ slow_query_log                       = 0
 #long_query_time                     = 1
 
 ## Cache
-table-definition-cache               = 4096
-thread-cache-size                    = 256
-query-cache-size                     = 64M
-query-cache-type                     = 1
+table_definition_cache               = 4096
+thread_cache_size                    = 256
+query_cache_size                     = 64M
+query_cache_type                     = 1
 
 ## Per-thread Buffers
-sort-buffer-size                     = 16M
+sort_buffer_size                     = 16M
 
 ## Temp Tables
-max-heap-table-size                  = 512M
-tmp-table-size                       = 512M
+max_heap_table_size                  = 512M
+tmp_table_size                       = 512M
 
 # InnoDB.
 default_storage_engine               = InnoDB
 transaction-isolation                = READ-COMMITTED
 
 ## Networking
-interactive-timeout                  = 3600
+interactive_timeout                  = 3600
 max_connections                      = 40
-max-connect-errors                   = 1000000
-max-allowed-packet                   = 512M
+max_connect_errors                   = 1000000
+max_allowed_packet                   = 512M
 # The following values, in seconds, 8 * 60 * 60 = 28800
-wait-timeout                         = 28800
-net-write-timeout                    = 28800
-net-read-timeout                     = 28800
+wait_timeout                         = 28800
+net_write_timeout                    = 28800
+net_read_timeout                     = 28800
 
 ## MyISAM
-key-buffer-size                      = 256M
-#myisam-recover                      = FORCE,BACKUP
-myisam-sort-buffer-size              = 128M
+key_buffer_size                      = 256M
+#myisam_recover                      = FORCE,BACKUP
+myisam_sort_buffer_size              = 128M
 
 ## InnoDB
 # Decrease pressure to persistent storage I/O
@@ -54,10 +54,10 @@ innodb_max_dirty_pages_pct           = 75
 innodb_max_dirty_pages_pct_lwm       = 60
 innodb_buffer_pool_instances         = 1
 
-innodb-buffer-pool-size              = 512MB
-innodb-log-file-size                 = 256M
+innodb_buffer_pool_size              = 512MB
+innodb_log_file_size                 = 256M
 innodb_log_buffer_size               = 8M
-innodb-thread-concurrency            = 18
+innodb_thread_concurrency            = 18
 innodb_flush_log_at_trx_commit       = 2
 innodb_file_per_table                = 1
 innodb_flush_method                  = O_DIRECT
@@ -65,4 +65,4 @@ innodb_flush_method                  = O_DIRECT
 sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
 
 ## Settings for Cloud
-auto_increment_increment=3
+#auto_increment_increment=3
