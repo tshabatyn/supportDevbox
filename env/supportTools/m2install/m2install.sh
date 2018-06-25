@@ -65,6 +65,11 @@ TIMEZONE="America/Chicago"
 LANGUAGE="en_US"
 CURRENCY="USD"
 
+AMQP_HOST="rabbit"
+AMQP_PORT="5672"
+AMQP_USER="magento2"
+AMQP_PASS="magento2"
+
 function printVersion()
 {
     printString "1.0.2"
@@ -836,12 +841,16 @@ return array(
     array(
       'amqp' =>
         array(
+          'virtualhost' => '/',
+          'exchange_id' => 'magento2ei',
           'host' => 'rabbit',
           'port' => '5672',
           'user' => 'magento2',
           'password' => 'magento2',
-          'virtualhost' => '/',
-          'ssl' => '',
+          'queue_options' =>
+          array (
+            'prefetch_count' => '1',
+          ),
         ),
     ),
   'db' =>
@@ -1155,11 +1164,11 @@ function installMagento()
     if [ "${DB_PASSWORD}" ]; then
         CMD="${CMD} --db-password=${DB_PASSWORD}"
     fi
-    if [ ping -c 1 -W 1 rabbit ]; then
-    CMD="${CMD} --amqp-host=\"rabbit\" \
-    --amqp-port=\"5672\" \
-    --amqp-user=\"guest\" \
-    --amqp-password=\"guest\""
+    if ping -c 1 -W 1 ${AMQP_HOST}; then
+    CMD="${CMD} --amqp-host=${AMQP_HOST} \
+    --amqp-port=${AMQP_PORT} \
+    --amqp-user=${AMQP_USER} \
+    --amqp-password=${AMQP_PASS}"
     fi
     runCommand
 }

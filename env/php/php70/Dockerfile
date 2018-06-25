@@ -98,7 +98,7 @@ RUN curl -Lo /usr/local/bin/phpcs https://squizlabs.github.io/PHP_CodeSniffer/ph
     && chmod a+x /usr/local/bin/codecept
 
 #we need it for tideways
-RUN sed -i 's%auto_prepend_file =%auto_prepend_file = "/var/www/xhgui/external/header.php"%g' /usr/local/etc/php/php.ini
+RUN sed -i 's%auto_prepend_file =%;auto_prepend_file = "/var/www/xhgui/external/header.php"%g' /usr/local/etc/php/php.ini
 #we need it for tideways
 
 COPY ./etc/php/php-fpm.d/development-www.conf /usr/local/etc/php-fpm.d/www.conf
@@ -150,6 +150,8 @@ RUN ln -s /usr/local/bin/tideways-php.sh /usr/local/bin/profiler.sh \
 RUN echo ";zend_extension=/var/www/ioncube/ioncube_loader_lin_7.0.so" > $PHP_INI_DIR/conf.d/docker-php-ext-ioncube.ini
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
+
+ENV PHP_SUBDOMAIN=php70
 
 WORKDIR /var/www/magento2
 

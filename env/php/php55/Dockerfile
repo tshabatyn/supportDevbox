@@ -81,7 +81,7 @@ RUN apt-get update && apt-get install -y \
 COPY ./etc/php/conf.d/development-php.ini $PHP_INI_DIR/php.ini
 
 #we need it for xhprof
-RUN sed -i 's%auto_prepend_file =%auto_prepend_file = "/var/www/xhgui/external/header.php"%g' /usr/local/etc/php/php.ini
+RUN sed -i 's%^auto_prepend_file =%;auto_prepend_file = "/var/www/xhgui/external/header.php"%g' /usr/local/etc/php/php.ini
 #we need it for xhprof
 
 COPY ./etc/php/php-fpm.d/development-www.conf /usr/local/etc/php-fpm.d/www.conf
@@ -89,7 +89,7 @@ RUN sed -i 's/www-data/root/g' /usr/local/etc/php-fpm.d/www.conf
 
 RUN sed -i 's/UMASK\s*022/UMASK\t002/' /etc/login.defs
 RUN echo 'umask 002' >> /etc/profile
-RUN echo echo 'alias ll="ls -lA"' >> /root/.bashrc \
+RUN echo 'alias ll="ls -lA"' >> /root/.bashrc \
     ; echo 'alias lt="ls -lth"' >> /root/.bashrc \
     ; echo 'alias ltr="ls -ltrh"' >> /root/.bashrc
 
@@ -139,6 +139,8 @@ RUN echo "if [ -f /etc/bash_completion ]; then" >> /root/.bashrc \
     && echo "fi" >> /root/.bashrc
 
 ENV PHP_IDE_CONFIG="serverName=magento.local"
+
+ENV PHP_SUBDOMAIN=php55
 
 WORKDIR /var/www/magento1
 
